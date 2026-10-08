@@ -1,3 +1,5 @@
+print("ENGINE LOADED")
+
 import numpy as np
 
 # Objects
