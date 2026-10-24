@@ -1,0 +1,12 @@
+The Block 2 Checkpoint demo showcases my engine in two simulations.
+
+Simulation 1 simulates a hot and cold gas as red and blue particles initialized in two separate boxes connected
+by a thin tube. The simulation represents how pressure equalizes, with more hot (red) particles moving over to
+the cold (blue) side, than vice versa. Initial and final state pictures are provided in the images file. This
+simulation showcases the versatility of the wall object and effectiveness of broad phase optimization for 
+collisions.
+
+Simulation 2 showcases the engine's spring and coulomb force classes, with four pairs of spring coupled bodies
+initialized in a box with various charges. For this simulation, energy is not very well conserved. I show in a 
+plot that energy conservation is valid for small values of dt. Both the plot and initial/final state images 
+simulation 2 can be found in the images file.
