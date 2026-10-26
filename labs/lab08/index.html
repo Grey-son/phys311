@@ -1,20 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Canvas Practice</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Week 8 -- Complete Canvas Reference</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h1>Lab08 Engine</h1>
+<h1>PHYS 311 Lab 8 -- Projectiles</h1>
 
-  <canvas id="stage" width="600" height="400"
-          style="border: 1px solid black; background: white;"></canvas>
+<canvas id="sim" width="900" height="520"></canvas>
 
-  <script type="module" src="./main.js"></script>
+<div class="panel">
+  <label>Scene
+    <select id="scene">
+      <option value="no drag">No Drag</option>
+      <option value="drag">Drag</option>
+      <option value="static">Static</option>
+    </select>
+  </label>
+  <label>Drag Coef
+    <select id="C">
+      <option value="0.01">0.01</option>
+      <option value="0.025">0.025</option>
+      <option value="0.05">0.05</option>
+      <option value="0.1">0.1</option>
+      <option value="0.25">0.25</option>
+      <option value="0.5">0.5</option>
+    </select>
+  </label>
+  <label>Integrator
+    <select id="integrators">
+      <option value="verlet">Velocity Verlet</option>
+      <option value="euler-cromer">Euler-Cromer</option>
+      <option value="euler">Euler</option>
+    </select>
+  </label>
+  <label>DT
+    <select id="dt">
+      <option value="240">1/240 s</option>
+      <option value="120">1/120 s</option>
+      <option value="60">1/60 s</option>
+      <option value="20">1/20 s (coarse)</option>
+    </select>
+  </label>
+  <button id="pause">Pause</button>
+  <button id="reset">Reset</button>
+  <button class="alt" id="validate">Validate at t = 2.0 s</button>
+</div>
 
-  <button id="reset" type="button">Reset</button>
-  <button id="pause" type="button">Pause</button>
+<div id="log">Ready. Press <b>Validate</b> to reproduce the notebook's reference numbers.</div>
+
+<script type="module" src="main.js"></script>
 
 </body>
 </html>
