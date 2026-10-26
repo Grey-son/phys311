@@ -103,7 +103,12 @@ function frame(nowMs) {
         b.trail.push(b.pos.clone());
         if (b.trail.length > 600) b.trail.shift();
       }
-      if (world.meta.kind === "projectile" && world.bodies[0].pos.y < 0) {
+      if (world.meta.kind === "no drag" && world.bodies[0].pos.y < 0) {
+        paused = true;
+        document.getElementById("pause").textContent = "Resume";
+        break;
+      }
+      if (world.meta.kind === "drag" && world.bodies[0].pos.y < 0) {
         paused = true;
         document.getElementById("pause").textContent = "Resume";
         break;
