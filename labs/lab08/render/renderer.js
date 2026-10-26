@@ -105,8 +105,11 @@ export function draw(ctx, canvas, world, hud) {
     "fps    = " + hud.fps.toFixed(0) + "   (steps/frame " + hud.lastSteps + ")",
     "DT     = 1/" + hud.dtDenom + " s",
     "method = " + hud.method,
-    "E      = " + world.totalEnergy().toFixed(6) + " J",
-    "dE/E0  = " + (drift >= 0 ? "+" : "") + drift.toExponential(3)
+    "KE     = " + world.kineticEnergy().toFixed(3) + " J",
+    "PE     = " + world.potentialEnergy().toFixed(3) + " J",
+    "E      = " + world.totalEnergy().toFixed(3) + " J",
+    "dE/E0  = " + (drift >= 0 ? "+" : "") + drift.toExponential(3),
+    "|v|    = " + world.bodies[0].vel.length() + " m/s"
   ];
   ctx.font = "13px monospace"; ctx.textBaseline = "top";
   ctx.fillStyle = "rgba(0,0,0,0.65)";

@@ -13,6 +13,7 @@ const MAX_FRAME = 0.25;
 const canvas = document.getElementById("sim");
 const ctx = canvas.getContext("2d");
 const logEl = document.getElementById("log");
+const variableDt = document.getElementById("variableDt");
 
 let dtDenom = 240;
 let DT = 1 / dtDenom;
@@ -93,25 +94,49 @@ function frame(nowMs) {
 
   let n = 0;
   if (!paused) {
-    accumulator += frameTime;
-    while (accumulator >= DT) {
-      world.step(DT);
-      accumulator -= DT;
+    const variableDt = document.getElementById("variableDt").checked;
+
+    if (variableDt) {
+      // Variable timestep: integrate using measured frame time
+      world.step(frameTime);
       n++;
+
+      const b = world.bodies[0];
       if (world.steps % 4 === 0) {
-        const b = world.bodies[0];
         b.trail.push(b.pos.clone());
         if (b.trail.length > 600) b.trail.shift();
       }
-      if (world.meta.kind === "no drag" && world.bodies[0].pos.y < 0) {
+
+      if (
+        (world.meta.kind === "no drag" || world.meta.kind === "drag") &&
+        b.pos.y < 0
+      ) {
         paused = true;
         document.getElementById("pause").textContent = "Resume";
-        break;
       }
-      if (world.meta.kind === "drag" && world.bodies[0].pos.y < 0) {
-        paused = true;
-        document.getElementById("pause").textContent = "Resume";
-        break;
+    } else {
+      // Fixed timestep: use the accumulator
+      accumulator += frameTime;
+
+      while (accumulator >= DT) {
+        world.step(DT);
+        accumulator -= DT;
+        n++;
+
+        const b = world.bodies[0];
+        if (world.steps % 4 === 0) {
+          b.trail.push(b.pos.clone());
+          if (b.trail.length > 600) b.trail.shift();
+        }
+
+        if (
+          (world.meta.kind === "no drag" || world.meta.kind === "drag") &&
+          b.pos.y < 0
+        ) {
+          paused = true;
+          document.getElementById("pause").textContent = "Resume";
+          break;
+        }
       }
     }
   }
@@ -124,7 +149,7 @@ function frame(nowMs) {
 // Logging Helpers & Validation Suite
 function clearLog() { logEl.textContent = ""; }
 function say(s, cls) {
-  const span = document.createElement("span");
+  const span = document.createElement("div");
   if (cls) span.className = cls;
   span.textContent = s + "";
   logEl.appendChild(span);
@@ -194,10 +219,12 @@ function validate() {
   say("        quantity                        JavaScript       Python (ref)");
 
   const REF = {
-    "euler-cromer": { x: 35.355339059327, y: 15.694464059327,
-                      vy: -1.942330470336, dE: -1.283148e-3 },
-    "verlet":       { x: 35.355339059327, y: 15.735339059327,
-                      vy: -1.942330470336, dE: 2.364686e-15 }
+    "euler-cromer": { x: 25.711504387461, y: 10.980902724759,
+                      vy: -4.299111137620, vx: 12.855752193731,
+                      dE: -2.004919e-03 },
+    "verlet":       { x: 25.711504387461, y: 11.021777724759,
+                      vy: -4.299111137620, vx: 12.855752193731,
+                      dE: 3.410605e-15 }
   };
 
   for (const m of ["euler-cromer", "verlet"]) {
@@ -210,8 +237,10 @@ function validate() {
     }
     allPass = row("x (m)",  r.x,  REF[m].x,  1e-9) && allPass;
     allPass = row("y (m)",  r.y,  REF[m].y,  1e-9) && allPass;
+    allPass = row("vx (m)",  r.vx,  REF[m].vx,  1e-9) && allPass;
     allPass = row("vy (m/s)", r.vy, REF[m].vy, 1e-9) && allPass;
     const dE = (r.E - r.E0) / r.E0;
+    allPass = row("dE (J)", r.dE, REF[m].dE, 1e-8) && allPass;
     say("        dE/E0" + " ".padEnd(17) +
         (dE >= 0 ? "+" : "") + dE.toExponential(6).padStart(17) +
         ("  ref " + REF[m].dE.toExponential(6)), "dim");
@@ -287,6 +316,14 @@ document.getElementById("reset").addEventListener("click", () => {
   resetSim();
   paused = false;
   document.getElementById("pause").textContent = "Pause";
+});
+
+document.getElementById("lag").addEventListener("click", () => {
+  const delay = 500;
+  const start = performance.now();
+
+  while (performance.now() - start < delay) {
+  }
 });
 
 for (const id of ["integrators", "scene", "dt", "C"]) {
