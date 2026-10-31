@@ -104,7 +104,6 @@ class Body_Collisions(Constraint):
         b2.r += n*overlap*inv_b2/(inv_b1+inv_b2)
         return True
 
-
     def resolve(self, world):
         bs = world.bodies
         body_index = {b: i for i, b in enumerate(bs)}
