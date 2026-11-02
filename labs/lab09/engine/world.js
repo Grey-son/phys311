@@ -9,6 +9,7 @@ export class World {
         this.constraints = [];
         this.time = 0;
         this.steps = 0;
+        this.grid = grid;
     }
     add(b) {this.bodies.push(b);}
     addForce(f) {this.forces.push(f);}

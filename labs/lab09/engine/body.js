@@ -1,5 +1,6 @@
 import { Vec2 } from "./vec2.js";
 
+let _nextId = 0
 export class Body {
   constructor({ mass = 1, pos = new Vec2(), vel = new Vec2(), radius = 0.25,
                 color = "#ff8200", fixed = false } = {}) {
@@ -13,6 +14,7 @@ export class Body {
     this.color = color;
     this.fixed = fixed;
     this.trail = [];
+    this.id = _nextId++
   }
     get kineticEnergy() {return 0.5*this.mass*this.vel.lengthSq();}
     clone() {return new Body(this.pos.clone(),this.vel.clone(),this.mass,this.radius);}
