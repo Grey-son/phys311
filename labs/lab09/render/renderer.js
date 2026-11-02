@@ -55,10 +55,6 @@ export function draw(ctx, canvas, world, hud) {
     ctx.moveTo(0, cam.toScreenY(0)); ctx.lineTo(canvas.width, cam.toScreenY(0));
     ctx.stroke();
   }
-  if (world.meta.kind === "static") {
-    drawGrid(ctx, canvas, cam, spacing, 0);
-    drawScaleBar(ctx, canvas, cam, 5, "5 m");
-  }
   if (world.meta.kind === "orbits") {
     drawGrid(ctx, canvas, cam, spacing, 0);
     drawScaleBar(ctx, canvas, cam, 5, "5 m");
@@ -113,6 +109,19 @@ export function draw(ctx, canvas, world, hud) {
             cam.toScreenLen(p_rad), 0, Math.PI * 2);
     ctx.fill();
   }
+  if (world.meta.kind === "box") {
+    const t_w = 50; const t_h = 25; const pad = 3;
+    const lowx = 5; const lowy = 3
+    ctx.fill();
+    ctx.strokeStyle = "#6c3813"; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cam.toScreenX(lowx), cam.toScreenY(lowy)); 
+    ctx.lineTo(cam.toScreenX(lowx+t_w), cam.toScreenY(lowy)); 
+    ctx.lineTo(cam.toScreenX(lowx+t_w), cam.toScreenY(lowy+t_h));
+    ctx.lineTo(cam.toScreenX(lowx), cam.toScreenY(lowy+t_h));
+    ctx.lineTo(cam.toScreenX(lowx), cam.toScreenY(lowy));
+    ctx.stroke();
+  }
   if (world.meta.kind === "unique") {
     drawGrid(ctx, canvas, cam, spacing, 0);
     drawScaleBar(ctx, canvas, cam, 5, "5 m");
@@ -139,7 +148,7 @@ export function draw(ctx, canvas, world, hud) {
             Math.max(4, cam.toScreenLen(b.radius)), 0, Math.PI * 2);
     ctx.fillStyle = b.color; ctx.fill();
     // velocity vector
-    if (world.velVec) {
+    if (world.meta.velVec) {
       const vs = world.meta.kind === "spring" ? 0.6 : 0.25;
       const tipX = cam.toScreenX(b.pos.x + b.vel.x * vs);
       const tipY = cam.toScreenY(b.pos.y + b.vel.y * vs);

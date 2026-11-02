@@ -31,7 +31,7 @@ export class BodyCollisions {
         const v_rel = b2.vel.sub(b1.vel)
         const vn = v_rel.dot(n)
 
-        if (vn>0) {return false}
+        //if (vn>0) {return false}
 
         if (b1.invMass + b2.invMass === 0) {return false}
 

@@ -16,10 +16,10 @@
   <label>Scene
     <select id="scene">
       <option value="projectile">Projectile</option>
-      <option value="static">Static</option>
       <option value="orbit">Orbits</option>
       <option value="billiards">Billiards</option>
-      <option value="unique">Unique</option>
+      <option value="box">Box</option>>
+      <option value="aniso">2D Oscillator</option>
     </select>
   </label>
 
@@ -31,13 +31,11 @@
   </div>
 
   <div id="parameterControl">
-    <label id="parameterLabel" for="C">Drag Coef</label>
+    <label id="parameterLabel" for="sceneParameter">Parameter</label>
     <input
       type="number"
-      id="C"
+      id="sceneParameter"
       value="0.01"
-      min="0"
-      step="0.001"
     >
   </div>
 

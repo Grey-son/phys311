@@ -66,18 +66,18 @@ export class NewtonianGravity {
 export class Spring {
     constructor(B1, B2, k=1, d_0=1) {this.b1=B1, this.b2=B2, this.k=k, this.d_0=d_0}
     apply(world) {
-        if (!world.bodies.includes(this.b1) || !world.bodies.includes(this.b1)) {return;}
-        const d = this.b1.sub(this.b2);
+        if (!world.bodies.includes(this.b1) || !world.bodies.includes(this.b2)) {return;}
+        const d = this.b1.pos.sub(this.b2.pos);
         const dist = d.length();
-        const F = d.mul(self.k*(dist-this.d_0)/dist);
-        this.b1.force.add(F);
-        this.b2.force.sub(F);
+        const F = d.mul(this.k*(dist-this.d_0)/dist);
+        this.b2.force.addTo(F);
+        this.b1.force.addScaled(-1,F);
     }
     potentialEnergy(world) {
-        if (!world.bodies.includes(this.b1) || !world.bodies.includes(this.b1)) {return;}
-        const d = this.b1.sub(this.b2);
+        if (!world.bodies.includes(this.b1) || !world.bodies.includes(this.b2)) {return;}
+        const d = this.b1.pos.sub(this.b2.pos);
         const dist = d.length();
-        U = 0.5*this.k*(dist-this.d_0)**2;
+        const U = 0.5*this.k*(dist-this.d_0)**2;
         return U;
     }
 }
