@@ -17,5 +17,14 @@ export class Body {
     this.id = _nextId++
   }
     get kineticEnergy() {return 0.5*this.mass*this.vel.lengthSq();}
-    clone() {return new Body(this.pos.clone(),this.vel.clone(),this.mass,this.radius);}
+  clone() {
+      return new Body({
+          mass: this.mass,
+          pos: this.pos.clone(),
+          vel: this.vel.clone(),
+          radius: this.radius,
+          color: this.color,
+          fixed: this.fixed
+      });
+  }
 }

@@ -3,41 +3,79 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, 
-    sans-serif; line-height: 1.5; color: #2d3b45; max-width: 980px; margin: 0 auto; 
-    padding: 20px; background: #cef0ff;
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+    line-height: 1.5;
+    color: #2d3b45;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #cef0ff;
 }
+
 h1 {
-    color: #cc00ff; border-bottom: 3px solid #cc00ff; padding-bottom: 10px;
+    color: #cc00ff;
+    border-bottom: 3px solid #cc00ff;
+    padding-bottom: 10px;
 }
+
 h2 {
-    color: #58595b; font-size: 1.15rem; border-bottom: 1px solid #ddd; padding-bottom: 6px; 
+    color: #58595b;
+    font-size: 1.15rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 6px;
     margin: 0 0 14px;
 }
+
 canvas {
-    background: #1e1e1e; border: 2px solid #58595b; border-radius: 6px; 
-    display: block; width: 100%; height: auto;
+    background: #1e1e1e;
+    border: 2px solid #58595b;
+    border-radius: 6px;
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
 }
+
+#sim {aspect-ratio: 900 / 520; touch-action: none;}
+
+#speedHistogram {aspect-ratio: 900 / 240;}
 
 #pointerReadout {
-    margin: 6px 2px 14px; font-family: monospace; font-size: 0.85rem;
-    color: #425563; min-height: 1.5em;
+    margin: 6px 2px 14px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #425563;
+    min-height: 1.5em;
 }
 
-.histogram {
-    margin-top: 24px;
-}
+.histogram {margin-top: 24px;}
 
 .panel {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px 24px; align-items: center; background: #fff;
-    border: 1px solid #ddd; border-radius: 8px; padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 24px;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
     margin: 20px 0;
 }
 
 .panel h2 {grid-column: 1 / -1;}
 
-.slider-control {display: flex; flex-direction: column; gap: 7px;}
+.slider-control {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
 
 .slider-control label,
 .select-control label {font-size: 0.9rem; font-weight: 600;}
@@ -75,6 +113,15 @@ select {
     flex-direction: column;
     gap: 8px;
     font-size: 0.9rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 12px;
+    margin: 0;
+}
+
+.toggles legend {
+    font-weight: 600;
+    padding: 0 5px;
 }
 
 .toggles input {
@@ -85,6 +132,7 @@ select {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+    flex-wrap: wrap;
 }
 
 button {
@@ -102,12 +150,24 @@ button:hover {
     background: #701187;
 }
 
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 button.alt {
     background: #006c93;
 }
 
 button.alt:hover {
     background: #005577;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 3px solid #006c93;
+    outline-offset: 3px;
 }
 
 .help {
@@ -118,17 +178,12 @@ button.alt:hover {
 }
 
 @media (max-width: 650px) {
-    body {
-        padding: 10px;
-    }
-    .panel {
-        grid-template-columns: 1fr;
-    }
+    body {padding: 10px;}
+
+    .panel {grid-template-columns: 1fr;}
+
     .panel h2,
-    .help {
-        grid-column: 1;
-    }
-    .buttons {
-        justify-content: flex-start;
-    }
+    .help {grid-column: 1;}
+    .buttons {justify-content: flex-start;}
+    button {flex: 1;}
 }

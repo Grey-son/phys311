@@ -13,6 +13,10 @@
   <section class="simulation">
     <canvas id="sim" width="900" height="520"></canvas>
   </section>
+  
+  <p id="pointerReadout" aria-live="polite">
+    Cursor: outside canvas
+  </p>
 
   <section class="histogram">
     <h2>Speed Distribution</h2>
@@ -77,6 +81,45 @@
         step="20"
         value="240">
     </div>
+  
+  <label for="wallRestitution">
+    Wall restitution:
+    <input
+      type="range"
+      id="wallRestitution"
+      min="0"
+      max="1"
+      step="0.01"
+      value="1"
+    >
+    <output id="wallRestitutionValue">1.00</output>
+  </label>
+
+  <label for="collisionRestitution">
+    Collision restitution:
+    <input
+      type="range"
+      id="collisionRestitution"
+      min="0"
+      max="1"
+      step="0.01"
+      value="1"
+    >
+    <output id="collisionRestitutionValue">1.00</output>
+  </label>
+
+  <label for="dragCoefficient">
+    Drag coefficient:
+    <input
+      type="range"
+      id="dragCoefficient"
+      min="0"
+      max="1"
+      step="0.001"
+      value="0"
+    >
+    <output id="dragCoefficientValue">0.000</output>
+  </label>
 
     <div class="select-control">
       <label for="integrators">Integrator</label>
@@ -97,12 +140,33 @@
         <input type="checkbox" id="doHeading">
         Velocity vectors
       </label>
+
+      <label for="doForce">
+        <input type="checkbox" id="doForce">
+        Force vectors
+      </label>
     </div>
 
-    <div class="buttons">
-      <button id="pause">Pause</button>
-      <button id="reset" class="alt">Reset</button>
-    </div>
+  <div class="buttons">
+    <button id="pause" type="button">Pause</button>
+    <button id="step" type="button">Single Step</button>
+    <button id="reset" class="alt" type="button">Reset</button>
+  </div>
+
+  <div class="slider-control">
+    <label for="speed">
+      Simulation Speed:
+      <output id="speedValue">1.00×</output>
+    </label>
+
+    <input
+      type="range"
+      id="speed"
+      min="0.25"
+      max="2"
+      step="0.05"
+      value="1">
+  </div>
 
     <p class="help">
       Keyboard shortcuts: Space = pause/resume, R = reset.
