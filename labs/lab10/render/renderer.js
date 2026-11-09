@@ -206,12 +206,12 @@ export function draw(ctx, canvas, world, hud) {
 
     // Simulation box.
     if (world.meta.kind === "box") {
-        const { cx, cy, w, h } = world.meta;
+        const { w, h } = world.meta;
 
-        const left = cam.toScreenX(cx - w / 2);
-        const right = cam.toScreenX(cx + w / 2);
-        const top = cam.toScreenY(cy + h / 2);
-        const bottom = cam.toScreenY(cy - h / 2);
+        const left = cam.toScreenX(30 - w / 2);
+        const right = cam.toScreenX(30 + w / 2);
+        const top = cam.toScreenY(15.5 + h / 2);
+        const bottom = cam.toScreenY(15.5 - h / 2);
 
         ctx.fillStyle = "#263f40";
         ctx.fillRect(left, top, right - left, bottom - top);

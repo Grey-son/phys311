@@ -28,8 +28,6 @@ const INTEGRATORS = {
 
 let boxWidth = 50;
 let boxHeight = 25;
-let boxCenterX = 30;
-let boxCenterY = 15.5;
 
 let dtDenom = 240;
 let DT = 1 / dtDenom;
@@ -49,9 +47,7 @@ let pressure = 0;
 
 let nextHistogramUpdate = 1;
 
-// --------------------------------------------------
 // UI setup
-// --------------------------------------------------
 
 function setPaused(value) {
   paused = value;
@@ -193,8 +189,8 @@ class Box {
     this.build(settings);
   }
   build(settings) {
-      this.xWall = new xWall(boxCenterX, boxWidth, 1);
-      this.yWall = new yWall(boxCenterY, boxHeight, 1);
+      this.xWall = new xWall(30, boxWidth, 1);
+      this.yWall = new yWall(15.5, boxHeight, 1);
 
       const w = new World(INTEGRATORS[this.integratorName]);
       w.addConstraint(this.xWall);
@@ -206,14 +202,12 @@ class Box {
 
       w.meta = {
         kind: "box",
-        camera: new Camera(8.5, 900 / 2 - boxCenterX * 8.5,520 / 2 + boxCenterY * 8.5),
+        camera: new Camera(8.5, 900 / 2 - 30 * 8.5,520 / 2 + 15.5 * 8.5),
         yRef: 0,
         tickSpacing: 5,
         trail: settings.trail,
         trailLen: 10,
         velVec: settings.heading,
-        cx: boxCenterX,
-        cy: boxCenterY,
         w: boxWidth,
         h: boxHeight
       };
@@ -224,12 +218,8 @@ class Box {
   update(settings = controls.getValues()) {
     this.w.meta.trail = settings.trail;
     this.w.meta.velVec = settings.heading;
-    this.xWall.Cx = boxCenterX;
-    this.yWall.Cy = boxCenterY;
     this.xWall.w = boxWidth;
     this.yWall.h = boxHeight;
-    this.w.meta.cx = boxCenterX;
-    this.w.meta.cy = boxCenterY;
     this.w.meta.w = boxWidth;
     this.w.meta.h = boxHeight;
   }
@@ -295,10 +285,7 @@ function updatePressure() {
 installPointerControls(
   canvas,
   () => world,
-  ({ cx, cy, w, h }) => {
-    boxCenterX = cx;
-    boxCenterY = cy;
-
+  ({ w, h }) => {
     boxWidth = w;
     boxHeight = h;
 
