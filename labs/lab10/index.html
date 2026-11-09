@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PHYS 311 Lab 10 -- Pressure and Temperature</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <h1>PHYS 311 Lab 10 -- Pressure and Temperature</h1>
+
+  <section class="simulation">
+    <canvas id="sim" width="900" height="520"></canvas>
+  </section>
+
+  <section class="histogram">
+    <h2>Speed Distribution</h2>
+    <canvas id="speedHistogram" width="900" height="240"></canvas>
+  </section>
+
+  <section class="panel">
+    <h2>Simulation Controls</h2>
+
+    <div class="slider-control">
+      <label for="bodyCount">
+        Particle Count:
+        <output id="bodyCountValue">50</output>
+      </label>
+      <input
+        type="range"
+        id="bodyCount"
+        min="1"
+        max="500"
+        step="1"
+        value="50">
+    </div>
+
+    <div class="slider-control">
+      <label for="boxWidth">
+        Box Width:
+        <output id="boxWidthValue">50 m</output>
+      </label>
+      <input
+        type="range"
+        id="boxWidth"
+        min="10"
+        max="75"
+        step="1"
+        value="50">
+    </div>
+
+    <div class="slider-control">
+      <label for="boxHeight">
+        Box Height:
+        <output id="boxHeightValue">25 m</output>
+      </label>
+      <input
+        type="range"
+        id="boxHeight"
+        min="10"
+        max="50"
+        step="1"
+        value="25">
+    </div>
+
+    <div class="slider-control">
+      <label for="dt">
+        Timestep:
+        <output id="dtValue">1/240 s</output>
+      </label>
+      <input
+        type="range"
+        id="dt"
+        min="20"
+        max="240"
+        step="20"
+        value="240">
+    </div>
+
+    <div class="select-control">
+      <label for="integrators">Integrator</label>
+      <select id="integrators">
+        <option value="verlet">Velocity Verlet</option>
+        <option value="euler-cromer">Euler-Cromer</option>
+        <option value="euler">Euler</option>
+      </select>
+    </div>
+
+    <div class="toggles">
+      <label>
+        <input type="checkbox" id="doTrail">
+        Trails
+      </label>
+
+      <label>
+        <input type="checkbox" id="doHeading">
+        Velocity vectors
+      </label>
+    </div>
+
+    <div class="buttons">
+      <button id="pause">Pause</button>
+      <button id="reset" class="alt">Reset</button>
+    </div>
+
+    <p class="help">
+      Keyboard shortcuts: Space = pause/resume, R = reset.
+      Changing particle count, integrator, or timestep resets the simulation.
+      Box dimensions update live.
+    </p>
+  </section>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

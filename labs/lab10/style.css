@@ -1,0 +1,134 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, 
+    sans-serif; line-height: 1.5; color: #2d3b45; max-width: 980px; margin: 0 auto; 
+    padding: 20px; background: #cef0ff;
+}
+h1 {
+    color: #cc00ff; border-bottom: 3px solid #cc00ff; padding-bottom: 10px;
+}
+h2 {
+    color: #58595b; font-size: 1.15rem; border-bottom: 1px solid #ddd; padding-bottom: 6px; 
+    margin: 0 0 14px;
+}
+canvas {
+    background: #1e1e1e; border: 2px solid #58595b; border-radius: 6px; 
+    display: block; width: 100%; height: auto;
+}
+
+#pointerReadout {
+    margin: 6px 2px 14px; font-family: monospace; font-size: 0.85rem;
+    color: #425563; min-height: 1.5em;
+}
+
+.histogram {
+    margin-top: 24px;
+}
+
+.panel {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 24px; align-items: center; background: #fff;
+    border: 1px solid #ddd; border-radius: 8px; padding: 20px;
+    margin: 20px 0;
+}
+
+.panel h2 {grid-column: 1 / -1;}
+
+.slider-control {display: flex; flex-direction: column; gap: 7px;}
+
+.slider-control label,
+.select-control label {font-size: 0.9rem; font-weight: 600;}
+
+output {
+    float: right;
+    color: #701187;
+    font-family: monospace;
+    font-weight: 700;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: #cc00ff;
+    cursor: pointer;
+}
+
+.select-control {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+select {
+    width: 100%;
+    padding: 7px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    background: white;
+    font-size: 0.9rem;
+}
+
+.toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.toggles input {
+    accent-color: #cc00ff;
+}
+
+.buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+button {
+    background: #d21fff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 9px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+button:hover {
+    background: #701187;
+}
+
+button.alt {
+    background: #006c93;
+}
+
+button.alt:hover {
+    background: #005577;
+}
+
+.help {
+    grid-column: 1 / -1;
+    color: #687780;
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+@media (max-width: 650px) {
+    body {
+        padding: 10px;
+    }
+    .panel {
+        grid-template-columns: 1fr;
+    }
+    .panel h2,
+    .help {
+        grid-column: 1;
+    }
+    .buttons {
+        justify-content: flex-start;
+    }
+}
