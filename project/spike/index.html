@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gravity Slingshot</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #1e1e1e;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    #sim {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    #readout {
+      position: fixed;
+      left: 14px;
+      bottom: 12px;
+      margin: 0;
+      padding: 7px 10px;
+      color: #e5e7eb;
+      background: rgb(20 20 20 / 78%);
+      border: 1px solid #555;
+      border-radius: 5px;
+      font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="sim"></canvas>
+
+  <p id="readout" aria-live="polite">
+    Drag the small body to aim, release to launch
+  </p>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
