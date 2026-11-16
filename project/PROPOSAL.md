@@ -26,8 +26,8 @@ of high mass $>100m$ and radius $>10R$. Static only in the MUST tier (motion on 
 
 | Term | Expression | Notes |
 |---|---|---|
-| Gravity | $\vec F_g = \sum_{i=1}^{n} \frac{GmM_i\vec r}{\abs{r_i}^3}$ | summed over each planet |
-| Drag | $\vec F_D = -b\abs{\vec V}\vec V$ | $b = 0.005$ |
+| Gravity | $\vec F_g = \sum_{i=1}^{n} \frac{GmM_i\vec r}{|r_i|^3}$ | summed over each planet |
+| Drag | $\vec F_D = -b|V|\vec V$ | $b = 0.005$ |
 | Terrain contact | circle of radius 0.25 vs. circle of radius >50 | restitution $e = 0.2$ |
 
 ### The one new thing
