@@ -2,19 +2,53 @@ import { Vec2 } from "./engine/vec2.js";
 import { Body } from "./engine/body.js";
 import { World } from "./engine/world.js";
 import { VelocityVerlet } from "./engine/verlet.js";
-import { NewtonianGravity, SlingshotForce } from "./engine/gravity.js";
+
+import {NewtonianGravity, SlingshotForce} from "./engine/forces.js";
+
 import { BodyCollisions } from "./engine/collisions.js";
 import { Camera } from "./render/camera.js";
 
-const canvas = document.getElementById("sim");
-const ctx = canvas.getContext("2d");
-const readout = document.getElementById("readout");
+import {
+    drawGhostTrajectory
+} from "./render/renderer.js";
+
+import {
+    getControls,
+    updateReadout
+} from "./UI/control.js";
+
+import { bindKeyboard } from "./UI/keyboard.js";
+import { bindPointer } from "./UI/pointer.js";
+
+
+// --------------------------------------------------
+// UI
+// --------------------------------------------------
+
+const { canvas, ctx, readout } = getControls();
+
+
+// --------------------------------------------------
+// Parameters
+// --------------------------------------------------
 
 const G = 0.8;
+const SOFTENING = 0.35;
+
 const DT = 1 / 240;
 const MAX_FRAME = 0.1;
+
 const WORLD_WIDTH = 42;
 const WORLD_HEIGHT = 26;
+
+// Ghost simulation duration.
+const GHOST_DURATION = 3.0;
+const GHOST_STEPS = Math.round(GHOST_DURATION / DT);
+
+
+// --------------------------------------------------
+// State
+// --------------------------------------------------
 
 let world;
 let projectile;
@@ -29,6 +63,13 @@ let dragging = false;
 
 let pointerWorld = null;
 let pullVector = new Vec2();
+
+let ghostTrajectory = [];
+
+
+// --------------------------------------------------
+// World initialization
+// --------------------------------------------------
 
 function resetWorld() {
 
@@ -62,10 +103,21 @@ function resetWorld() {
     world.add(planet2);
     world.add(projectile);
 
-    world.addForce(new NewtonianGravity(G, 0.35));
-    world.addForce(new SlingshotForce({strength: 18,maxPull: 8,duration: 0.18}));
+    world.addForce(
+        new NewtonianGravity(G, SOFTENING)
+    );
 
-    world.addConstraint(new BodyCollisions(0.8,0.4))
+    sling = new SlingshotForce({
+        strength: 18,
+        maxPull: 8,
+        duration: 0.18
+    });
+
+    world.addForce(sling);
+
+    world.addConstraint(
+        new BodyCollisions(0.8, 0.4)
+    );
 
     world.meta = {
         camera: new Camera(1, 0, 0)
@@ -74,126 +126,162 @@ function resetWorld() {
     world.primeAccelerations();
 
     accumulator = 0;
+
     dragging = false;
     pullVector = new Vec2();
 
+    pointerWorld = null;
+    ghostTrajectory = [];
+
     paused = false;
+
     lastTime = performance.now() / 1000;
 
-    updateReadout();
+    updateUI();
 }
+
+
+// --------------------------------------------------
+// UI updates
+// --------------------------------------------------
+
+function updateUI() {
+
+    updateReadout(readout, {
+        paused,
+        dragging,
+        projectile,
+        pullVector
+    });
+}
+
+
+// --------------------------------------------------
+// Camera
+// --------------------------------------------------
 
 function resizeCanvas() {
 
     const dpr = window.devicePixelRatio || 1;
 
-    const width = Math.max(1,Math.round(window.innerWidth * dpr));
-    const height = Math.max(1,Math.round(window.innerHeight * dpr));
+    const width = Math.max(
+        1,
+        Math.round(window.innerWidth * dpr)
+    );
 
-    if (canvas.width !== width || canvas.height !== height
-    ) {canvas.width = width; canvas.height = height;}
+    const height = Math.max(
+        1,
+        Math.round(window.innerHeight * dpr)
+    );
 
-    const scale = Math.min(width / WORLD_WIDTH, height / WORLD_HEIGHT);
+    if (
+        canvas.width !== width ||
+        canvas.height !== height
+    ) {
+        canvas.width = width;
+        canvas.height = height;
+    }
 
     camera = world.meta.camera;
 
-    camera.scale = scale;
+    camera.scale = Math.min(
+        width / WORLD_WIDTH,
+        height / WORLD_HEIGHT
+    );
+
     camera.originX = width / 2;
     camera.originY = height / 2;
 }
 
-function eventToWorld(event) {
-    const rect = canvas.getBoundingClientRect();
-    const px = (event.clientX - rect.left) * canvas.width / rect.width;
-    const py = (event.clientY - rect.top) * canvas.height / rect.height;
-    return new Vec2(camera.toWorldX(px), camera.toWorldY(py));
-}
 
-function updateReadout() {
+// --------------------------------------------------
+// Ghost trajectory simulation
+// --------------------------------------------------
 
-    const state = paused ? "paused" : "running";
-
-    const speed = projectile.vel.length();
-
-    readout.textContent =
-        `Space: ${state}  |  R: reset  |  ` +
-        `Projectile speed: ${speed.toFixed(2)}  |  ` +
-        (
-            dragging
-                ? `Pull: ${pullVector.length().toFixed(2)}`
-                : "Drag the small body to aim, release to launch"
-        );
-}
-
-canvas.addEventListener("pointerdown", event => {
-
-    if (event.button !== 0 || dragging) return;
-
-    const point = eventToWorld(event);
+function simulateGhostTrajectory() {
 
     if (
-        projectile.pos.sub(point).length() >
-        projectile.radius + 0.35
-    ) {return;}
+        !dragging ||
+        !pullVector ||
+        pullVector.length() === 0
+    ) {
+        ghostTrajectory = [];
+        return;
+    }
 
-    dragging = true;
-    paused = false;
+    // Create an independent preview world.
+    const previewWorld = new World(VelocityVerlet);
 
-    projectile.fixed = true;
-    projectile.invMass = 0;
-
-    sling.begin(projectile);
-
-    pullVector = new Vec2();
-
-    canvas.setPointerCapture(event.pointerId);
-
-    event.preventDefault();
-
-    updateReadout();
-});
+    const bodyMap = new Map();
 
 
-canvas.addEventListener("pointermove", event => {
+    // Clone all bodies.
+    for (const body of world.bodies) {
 
-    pointerWorld = eventToWorld(event);
+        const copy = body.clone();
 
-    if (!dragging) return;
+        copy.fixed = body.fixed;
+        copy.invMass = body.fixed ? 0 : 1 / body.mass;
 
-    pullVector = pointerWorld.sub(projectile.pos);
+        previewWorld.add(copy);
 
-    sling.setPull(pullVector);
-
-    updateReadout();
-});
+        bodyMap.set(body, copy);
+    }
 
 
-function releasePointer() {
+    // Retrieve the cloned projectile.
+    const previewProjectile = bodyMap.get(projectile);
 
-    if (!dragging) return;
+    previewProjectile.fixed = false;
+    previewProjectile.invMass =
+        1 / previewProjectile.mass;
 
-    dragging = false;
 
-    projectile.fixed = false;
-    projectile.invMass = 1 / projectile.mass;
+    // Apply the prospective slingshot impulse.
+    // This uses the exact same impulse calculation
+    // as the actual release.
 
-    sling.release(world.time);
-    world.primeAccelerations();
-    updateReadout();
+    previewProjectile.vel.addScaled(
+        previewProjectile.invMass,
+        sling.impulseForPull(pullVector)
+    );
+
+
+    // Recreate the forces and constraints.
+    previewWorld.addForce(
+        new NewtonianGravity(G, SOFTENING)
+    );
+
+    previewWorld.addConstraint(
+        new BodyCollisions(0.8, 0.4)
+    );
+
+    previewWorld.primeAccelerations();
+
+
+    // Store the simulated positions.
+    const points = [
+        previewProjectile.pos.clone()
+    ];
+
+
+    // Simulate the projectile's future trajectory.
+    for (let i = 0; i < GHOST_STEPS; i++) {
+
+        previewWorld.step(DT);
+
+        points.push(
+            previewProjectile.pos.clone()
+        );
+    }
+
+    ghostTrajectory = points;
 }
 
 
-canvas.addEventListener("pointerup", releasePointer);
-canvas.addEventListener("pointercancel", releasePointer);
-
-window.addEventListener("keydown", event => {
-
-    if (event.code === "Space") {
-        event.preventDefault();
-        if (!dragging) {paused = !paused;}
-        updateReadout();
-    } else if (event.key.toLowerCase() === "r") {resetWorld();}
-});
+// --------------------------------------------------
+// Drawing: bodies
+// --------------------------------------------------
 
 function drawBody(body) {
 
@@ -227,6 +315,11 @@ function drawBody(body) {
     ctx.stroke();
 }
 
+
+// --------------------------------------------------
+// Drawing: grid
+// --------------------------------------------------
+
 function drawGrid() {
 
     ctx.save();
@@ -240,24 +333,30 @@ function drawGrid() {
     const bottom = camera.toWorldY(canvas.height);
     const top = camera.toWorldY(0);
 
+
     for (
         let x = Math.ceil(left / 2) * 2;
         x <= right;
         x += 2
     ) {
+
         const px = camera.toScreenX(x);
+
         ctx.beginPath();
         ctx.moveTo(px, 0);
         ctx.lineTo(px, canvas.height);
         ctx.stroke();
     }
 
+
     for (
         let y = Math.ceil(bottom / 2) * 2;
         y <= top;
         y += 2
     ) {
+
         const py = camera.toScreenY(y);
+
         ctx.beginPath();
         ctx.moveTo(0, py);
         ctx.lineTo(canvas.width, py);
@@ -267,9 +366,11 @@ function drawGrid() {
     ctx.restore();
 }
 
+// Drawing: slingshot
+
 function drawSling() {
 
-    if (!dragging) return;
+    if (!dragging || !pointerWorld) return;
 
     const x1 = camera.toScreenX(projectile.pos.x);
     const y1 = camera.toScreenY(projectile.pos.y);
@@ -281,58 +382,99 @@ function drawSling() {
 
     ctx.strokeStyle = "#f48771";
     ctx.lineWidth = 3;
-
     ctx.setLineDash([8, 6]);
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
+
     ctx.stroke();
-
     ctx.setLineDash([]);
-
     ctx.fillStyle = "#f48771";
 
     ctx.beginPath();
-    ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+    ctx.arc(x2,y2,5,0,Math.PI * 2);
     ctx.fill();
-
     ctx.restore();
 }
+
+// Drawing: scene
 
 function draw() {
 
     ctx.fillStyle = "#1e1e1e";
-
-    ctx.fillRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
     drawGrid();
+
+    // Ghost trajectory is rendered behind the bodies.
+    drawGhostTrajectory(ctx,camera,ghostTrajectory);
+
     drawSling();
 
     for (const body of world.bodies) {drawBody(body);}
 
     ctx.save();
+
     ctx.fillStyle = "#d4d4d4";
-    ctx.font = `${Math.max(12, canvas.width / 95)}px system-ui`;
+
+    ctx.font =`${Math.max(12, canvas.width / 95)}px system-ui`;
     ctx.fillText("Two-body gravity / slingshot test",18,30);
     ctx.restore();
 }
 
+// Pointer controls
+
+bindPointer({
+
+    canvas,
+
+    getCamera: () => camera,
+    getProjectile: () => projectile,
+    getSling: () => sling,
+
+    isDragging: () => dragging,
+
+    setDragging: value => {dragging = value;},
+
+    setPaused: value => {paused = value;},
+
+    setPullVector: value => {pullVector = value;},
+
+    getPullVector: () => pullVector,
+
+    onChange: point => {
+
+        pointerWorld = point;
+
+        // Recalculate preview whenever the pull changes.
+        simulateGhostTrajectory();
+
+        updateUI();
+    }
+});
+
+// Keyboard controls
+
+bindKeyboard({
+    isDragging: () => dragging,
+    togglePaused: () => {paused = !paused; updateUI();},
+    reset: resetWorld
+});
+
+// Main run loop
+
 function frame(nowMs) {
 
     const now = nowMs / 1000;
-
     const elapsed = Math.min(now - lastTime, MAX_FRAME);
 
     lastTime = now;
 
     if (!paused && !dragging) {
+
         accumulator += elapsed;
+
         while (accumulator >= DT) {
             world.step(DT);
             accumulator -= DT;
@@ -340,12 +482,14 @@ function frame(nowMs) {
     }
 
     draw();
-    updateReadout();
+    updateUI();
     requestAnimationFrame(frame);
 }
+
+
+// Initialization
 
 resetWorld();
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
-
 requestAnimationFrame(frame);
