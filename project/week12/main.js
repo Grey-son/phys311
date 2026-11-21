@@ -13,22 +13,22 @@ import { drawHud } from "./render/hud.js";
 import {getControls,updateReadout} from "./ui/controls.js";
 import { bindKeyboard } from "./ui/keyboard.js";
 import { bindPointer } from "./ui/pointer.js";
+import { createScreenManager } from "./ui/screens.js";
+
+import { levels, getLevel, getNextLevel } from "./levels/index.js";
 
 // UI
 
 const { canvas, ctx, readout } = getControls();
 
+const screens = createScreenManager(levels);
+
+let currentLevel = null;
+let gameActive = false;
+
 // Parameters
-
-const G = 0.8;
-const SOFTENING = 0.35;
-const PAR = 3;
-
 const DT = 1 / 240;
 const MAX_FRAME = 0.1;
-
-const WORLD_WIDTH = 42;
-const WORLD_HEIGHT = 26;
 
 // Ghost simulation duration.
 const GHOST_DURATION = 3.0;
@@ -59,41 +59,99 @@ let pullVector = new Vec2();
 let ghostTrajectory = [];
 
 // World initialization
-function resetWorld() {
+function resetWorld(level = currentLevel) {
+
+    if (!level) return;
+
+    currentLevel = level;
+
     strokes = 0;
     won = false;
 
-    document.getElementById("win-overlay").classList.remove("visible");
-    document.getElementById("stroke-count").textContent = "Strokes: 0";
+    document.getElementById("win-overlay")
+        .classList.remove("visible");
+
+    document.getElementById("stroke-count")
+        .textContent = "Strokes: 0";
 
     world = new World(VelocityVerlet);
 
-    const planet1 = new Body({mass: 800,pos: new Vec2(-20, 10),
-        radius: 3.4,color: "#d9a441",fixed: true, uK: 1});
-    const planet2 = new Body({mass: 600,pos: new Vec2(-15, -1),
-        radius: 4.0,color: "#6ca6d9",fixed: true, uK: 1});
-    const planet3 = new Body({mass: 250,pos: new Vec2(-6, 9),
-        radius: 2.4,color: "#d9a441",fixed: true, uK: 1});
-    const planet4 = new Body({mass: 800,pos: new Vec2(15, -5),
-        radius: 4.3,color: "#6ca6d9",fixed: true, uK: 1});
-    const planet5 = new Body({mass: 1000,pos: new Vec2(0, 0),
-        radius: 7.0,color: "#545141",fixed: true, uK: 1});
 
-    projectile = new Body({mass: 1,pos: new Vec2(-14, 12),vel: new Vec2(-10, 0),radius: 0.25,color: "#f48771"});
+    // ------------------------------------------
+    // Create level bodies
+    // ------------------------------------------
 
-    flag = new Flag({pos: new Vec2(15, -10),radius: 0.85});
+    for (const data of level.bodies) {
 
-    world.add(planet1);world.add(planet2);world.add(planet3);
-    world.add(planet4);world.add(planet5);
+        const body = new Body({
+            ...data,
+            pos: new Vec2(...data.pos)
+        });
+
+        world.add(body);
+    }
+
+
+    // ------------------------------------------
+    // Create projectile
+    // ------------------------------------------
+
+    projectile = new Body({
+        ...level.projectile,
+
+        pos: new Vec2(...level.projectile.pos),
+        vel: new Vec2(...level.projectile.vel)
+    });
+
     world.add(projectile);
 
-    world.addForce(new NewtonianGravity(G, SOFTENING));
-    sling = new SlingshotForce({strength: 18,maxPull: 8,duration: 0.18});
-    world.addForce(sling);
-    world.addForce(new SlidingFriction());
-    world.addConstraint(new BodyCollisions(0.8, 0.4));
 
-    world.meta = {camera: new Camera(1, 0, 0)};
+    // ------------------------------------------
+    // Create goal
+    // ------------------------------------------
+
+    flag = new Flag({
+        pos: new Vec2(...level.flag.pos),
+        radius: level.flag.radius
+    });
+
+
+    // ------------------------------------------
+    // Physics configuration
+    // ------------------------------------------
+
+    const physics = level.physics;
+
+    world.addForce(
+        new NewtonianGravity(
+            physics.G,
+            physics.softening
+        )
+    );
+
+    sling = new SlingshotForce({
+        ...level.slingshot
+    });
+
+    world.addForce(sling);
+
+    world.addForce(new SlidingFriction());
+
+    world.addConstraint(
+        new BodyCollisions(
+            physics.restitution,
+            physics.collisionEps
+        )
+    );
+
+
+    // ------------------------------------------
+    // Camera and simulation initialization
+    // ------------------------------------------
+
+    world.meta = {
+        camera: new Camera(1, 0, 0)
+    };
 
     world.primeAccelerations();
 
@@ -102,14 +160,16 @@ function resetWorld() {
     accumulator = 0;
 
     dragging = false;
+    paused = false;
+
     pullVector = new Vec2();
 
     pointerWorld = null;
     ghostTrajectory = [];
 
-    paused = false;
-
     lastTime = performance.now() / 1000;
+
+    resizeCanvas();
 
     updateUI();
 }
@@ -145,9 +205,21 @@ function checkWin() {
 
     ghostTrajectory = [];
 
-    // Display victory popup
+    // Unlock the next level.
+    screens.completeLevel(currentLevel.id);
+
     document.getElementById("win-message").textContent =
-        `Completed in ${strokes} ${strokes === 1 ? "stroke" : "strokes"}.`;
+        `Completed ${currentLevel.name} in ${strokes} ${
+            strokes === 1 ? "stroke" : "strokes"
+        }.`;
+
+    const next = getNextLevel(currentLevel.id);
+
+    const nextButton = document.getElementById("next-level-button");
+
+    nextButton.disabled = !next || !screens.isUnlocked(next.id);
+
+    nextButton.textContent = next ? "NEXT LEVEL" : "ALL LEVELS COMPLETE";
 
     document.getElementById("win-overlay").classList.add("visible");
 
@@ -181,8 +253,8 @@ function resizeCanvas() {
     camera = world.meta.camera;
 
     camera.scale = Math.min(
-        width / WORLD_WIDTH,
-        height / WORLD_HEIGHT
+        width / currentLevel.world.width,
+        height / currentLevel.world.height
     );
 
     camera.originX = width / 2;
@@ -233,9 +305,11 @@ function simulateGhostTrajectory() {
     previewProjectile.vel.addScaled(previewProjectile.invMass,sling.impulseForPull(pullVector));
 
     // Recreate the forces and constraints.
-    previewWorld.addForce(new NewtonianGravity(G, SOFTENING));
+    const physics = currentLevel.physics;
+
+    previewWorld.addForce(new NewtonianGravity(physics.G,physics.softening));
     previewWorld.addForce(new SlidingFriction())
-    previewWorld.addConstraint(new BodyCollisions(0.8, 0.4));
+    previewWorld.addConstraint(new BodyCollisions(physics.restitution,physics.collisionEps));
 
     previewWorld.primeAccelerations();
 
@@ -243,17 +317,13 @@ function simulateGhostTrajectory() {
     const points = [previewProjectile.pos.clone()];
 
     // Simulate the projectile's future trajectory.
-    for (let i = 0; i < GHOST_STEPS; i++) {
-
+    for (let i = 0; i < ghostSteps; i++) {
         previewWorld.step(DT);
-
-        points.push(
-            previewProjectile.pos.clone()
-        );
+        points.push(previewProjectile.pos.clone());
     }
 
-    ghostTrajectory = points;
-}
+        ghostTrajectory = points;
+    }
 
 function getGravityInfo() {
 
@@ -275,7 +345,8 @@ function getGravityInfo() {
         // Match the gravitational force equation
         // used in engine/forces.js.
 
-        const factor = G * source.mass / (dist ** 3 + SOFTENING ** 2);
+        const { G, softening } = currentLevel.physics;
+        const factor = G * source.mass / (dist ** 3 + softening ** 2);
 
         gx += factor * d.x;
         gy += factor * d.y;
@@ -628,20 +699,39 @@ function draw() {
 
     // Draw simulation HUD.
     drawHud(ctx, canvas, world, {
+
         E0: initialEnergy,
+
         strokes: strokes,
-        par: PAR,
-        gravityG: G,
+        par: currentLevel.par,
+
+        gravityG: currentLevel.physics.G,
         gravityMagnitude: gravity.magnitude,
         gravityDirection: gravity.direction,
         gravityAngle: gravity.angle,
+
         paused: paused,
         fps: fps,
+
         dtDenom: Math.round(1 / DT)
     });
 }
 
+function startLevel(level) {
+
+    if (!level) return;
+
+    gameActive = true;
+
+    screens.showGame();
+
+    resetWorld(level);
+}
+
+
+// ------------------------------------------
 // Pointer controls
+// ------------------------------------------
 
 bindPointer({
 
@@ -652,14 +742,19 @@ bindPointer({
     getSling: () => sling,
 
     isDragging: () => dragging,
-
     isWon: () => won,
 
-    setDragging: value => {dragging = value;},
+    setDragging: value => {
+        dragging = value;
+    },
 
-    setPaused: value => {paused = value;},
+    setPaused: value => {
+        paused = value;
+    },
 
-    setPullVector: value => {pullVector = value;},
+    setPullVector: value => {
+        pullVector = value;
+    },
 
     getPullVector: () => pullVector,
 
@@ -668,8 +763,11 @@ bindPointer({
         pointerWorld = point;
 
         if (!dragging && pullVector.length() > 0 && !won) {
-            strokes += 1;
+
+            strokes++;
+
             updateStrokeDisplay();
+
             pullVector = new Vec2();
         }
 
@@ -679,51 +777,183 @@ bindPointer({
     }
 });
 
+
+// ------------------------------------------
 // Keyboard controls
+// ------------------------------------------
 
 bindKeyboard({
+
     isDragging: () => dragging,
-    togglePaused: () => {paused = !paused; updateUI();},
-    reset: resetWorld
+
+    togglePaused: () => {
+
+        if (!gameActive || won) return;
+
+        paused = !paused;
+
+        updateUI();
+    },
+
+    reset: () => {
+
+        if (gameActive) {resetWorld(currentLevel);}
+    }
 });
 
-document.getElementById("reset-button").addEventListener("click", resetWorld);
 
+// ------------------------------------------
+// Main menu
+// ------------------------------------------
+
+document.getElementById("play-button")
+    .addEventListener("click", () => {
+
+        const first = screens.firstUnlocked();
+
+        if (first) {startLevel(first);}
+    });
+
+
+document.getElementById("levels-button")
+    .addEventListener("click", () => {
+
+        screens.renderLevelSelect(startLevel);
+
+        screens.showLevelSelect();
+    });
+
+
+// ------------------------------------------
+// Level selection
+// ------------------------------------------
+
+document.getElementById("back-menu")
+    .addEventListener("click", () => {
+
+        screens.showMainMenu();
+    });
+
+
+document.getElementById("game-levels")
+    .addEventListener("click", () => {
+
+        gameActive = false;
+
+        screens.renderLevelSelect(startLevel);
+
+        screens.showLevelSelect();
+    });
+
+
+// ------------------------------------------
+// Game navigation
+// ------------------------------------------
+
+document.getElementById("restart-button")
+    .addEventListener("click", () => {
+
+        resetWorld(currentLevel);
+    });
+
+
+document.getElementById("game-menu")
+    .addEventListener("click", () => {
+
+        gameActive = false;
+
+        screens.showMainMenu();
+    });
+
+
+// ------------------------------------------
+// Victory screen navigation
+// ------------------------------------------
+
+document.getElementById("next-level-button")
+    .addEventListener("click", () => {
+
+        const next = getNextLevel(currentLevel.id);
+
+        if (
+            next &&
+            screens.isUnlocked(next.id)
+        ) {
+            startLevel(next);
+        }
+    });
+
+
+document.getElementById("win-levels-button")
+    .addEventListener("click", () => {
+
+        gameActive = false;
+
+        screens.renderLevelSelect(startLevel);
+
+        screens.showLevelSelect();
+    });
+
+
+document.getElementById("win-menu-button")
+    .addEventListener("click", () => {
+
+        gameActive = false;
+
+        screens.showMainMenu();
+    });
+
+
+// ------------------------------------------
 // Main run loop
+// ------------------------------------------
 
 function frame(nowMs) {
 
     const now = nowMs / 1000;
-    const elapsed = Math.min(now - lastTime, MAX_FRAME);
+
+    const elapsed = Math.min(
+        now - lastTime,
+        MAX_FRAME
+    );
 
     lastTime = now;
 
-    if (!paused && !dragging && !won) {
+    if (gameActive && world) {
 
-        accumulator += elapsed;
+        if (!paused && !dragging && !won) {
 
-        while (accumulator >= DT) {
+            accumulator += elapsed;
 
-            const previousPosition = projectile.pos.clone();
-
-            world.step(DT);
-
-            accumulator -= DT;
-
-            checkWin(previousPosition);
-
-            if (won) {accumulator = 0;break;}
+            while (accumulator >= DT) {
+                const previousPosition = projectile.pos.clone();
+                world.step(DT);
+                accumulator -= DT;
+                checkWin(previousPosition);
+                if (won) {accumulator = 0; break;}
+            }
         }
+
+        draw();
+
+        updateUI();
     }
 
-    draw();
-    updateUI();
     requestAnimationFrame(frame);
 }
 
-// Initialization
 
-resetWorld();
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
+// ------------------------------------------
+// Initialization
+// ------------------------------------------
+
+screens.showMainMenu();
+
+window.addEventListener("resize", () => {
+
+    if (gameActive && world) {
+        resizeCanvas();
+    }
+});
+
 requestAnimationFrame(frame);
