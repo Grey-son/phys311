@@ -30,10 +30,6 @@ let gameActive = false;
 const DT = 1 / 240;
 const MAX_FRAME = 0.1;
 
-// Ghost simulation duration.
-const GHOST_DURATION = 3.0;
-const GHOST_STEPS = Math.round(GHOST_DURATION / DT);
-
 // State
 let world;
 let projectile;
@@ -274,6 +270,9 @@ function simulateGhostTrajectory() {
         return;
     }
 
+    // Number of steps is specific to the selected level.
+    const ghostSteps = Math.max(1,Math.round(currentLevel.ghostDuration / DT));
+
     // Create an independent preview world.
     const previewWorld = new World(VelocityVerlet);
 
@@ -298,32 +297,39 @@ function simulateGhostTrajectory() {
     previewProjectile.fixed = false;
     previewProjectile.invMass = 1 / previewProjectile.mass;
 
-    // Apply the prospective slingshot impulse.
-    // This uses the exact same impulse calculation
-    // as the actual release.
+    // Apply the exact impulse that would be applied on release.
+    const impulse = sling.impulseForPull(pullVector);
 
-    previewProjectile.vel.addScaled(previewProjectile.invMass,sling.impulseForPull(pullVector));
+    previewProjectile.vel.addScaled(previewProjectile.invMass,impulse);
 
-    // Recreate the forces and constraints.
+    // Recreate the level's physics.
     const physics = currentLevel.physics;
 
-    previewWorld.addForce(new NewtonianGravity(physics.G,physics.softening));
-    previewWorld.addForce(new SlidingFriction())
-    previewWorld.addConstraint(new BodyCollisions(physics.restitution,physics.collisionEps));
+    previewWorld.addForce(
+        new NewtonianGravity(physics.G,physics.softening)
+    );
+
+    previewWorld.addForce(new SlidingFriction());
+
+    previewWorld.addConstraint(
+        new BodyCollisions(physics.restitution,physics.collisionEps)
+    );
 
     previewWorld.primeAccelerations();
 
-    // Store the simulated positions.
+    // Initial position.
     const points = [previewProjectile.pos.clone()];
 
-    // Simulate the projectile's future trajectory.
+    // Simulate future trajectory.
     for (let i = 0; i < ghostSteps; i++) {
+
         previewWorld.step(DT);
+
         points.push(previewProjectile.pos.clone());
     }
 
-        ghostTrajectory = points;
-    }
+    ghostTrajectory = points;
+}
 
 function getGravityInfo() {
 
@@ -488,179 +494,63 @@ function drawSling() {
 }
 
 function drawFlag() {
-
     if (!flag) return;
 
     const x = camera.toScreenX(flag.pos.x);
     const y = camera.toScreenY(flag.pos.y);
-
-    // Portal dimensions
-    const rx = camera.toScreenLen(0.9);
-    const ry = camera.toScreenLen(1.5);
+    const r = camera.toScreenLen(flag.radius);
 
     const time = performance.now() / 1000;
 
     ctx.save();
 
-    // --------------------------------------------------
-    // Outer glow
-    // --------------------------------------------------
-
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = "#773cff";
-
-    const glow = ctx.createRadialGradient(
-        x, y, rx * 0.3,
-        x, y, rx * 1.8
-    );
-
-    glow.addColorStop(0, "rgba(70, 130, 255, 0.2)");
-    glow.addColorStop(0.5, "rgba(130, 50, 255, 0.25)");
-    glow.addColorStop(1, "rgba(40, 20, 100, 0)");
-
-    ctx.fillStyle = glow;
-
+    // Black portal center
     ctx.beginPath();
-    ctx.ellipse(x, y, rx * 1.8, ry * 1.5, 0, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#050509";
     ctx.fill();
 
-    ctx.shadowBlur = 0;
-
-    // --------------------------------------------------
-    // Portal interior
-    // --------------------------------------------------
-
-    ctx.save();
-
+    // Circular blue-purple perimeter
     ctx.beginPath();
-    ctx.ellipse(x, y, rx * 0.85, ry * 0.85, 0, 0, Math.PI * 2);
-    ctx.clip();
+    ctx.arc(x, y, r * 0.92, 0, Math.PI * 2);
+    ctx.strokeStyle = "#387bff";
+    ctx.lineWidth = Math.max(2, r * 0.12);
+    ctx.stroke();
 
-    const interior = ctx.createRadialGradient(
-        x - rx * 0.3,
-        y - ry * 0.3,
-        0,
-        x,
-        y,
-        ry
-    );
+    // Spiral bands
+    const colors = ["#55baff", "#7655ff", "#bd65ff"];
 
-    interior.addColorStop(0, "#b8caff");
-    interior.addColorStop(0.3, "#526cff");
-    interior.addColorStop(0.65, "#6228c9");
-    interior.addColorStop(1, "#160b3d");
-
-    ctx.fillStyle = interior;
-    ctx.fillRect(
-        x - rx,
-        y - ry,
-        rx * 2,
-        ry * 2
-    );
-
-    // Swirling energy bands
-    for (let i = 0; i < 7; i++) {
-
-        const phase = time * (1.5 + i * 0.15) + i;
+    for (let i = 0; i < 3; i++) {
+        const startAngle = time * 0.8 + i * (Math.PI * 2 / 3);
 
         ctx.beginPath();
 
-        ctx.ellipse(
-            x,
-            y,
-            rx * (0.2 + i * 0.1),
-            ry * (0.2 + i * 0.1),
-            phase,
-            0,
-            Math.PI * 2
-        );
+        for (let j = 0; j <= 100; j++) {
+            const t = j / 100;
+            const angle = startAngle + t * Math.PI * 2;
+            const radius = r * (0.12 + t * 0.78);
 
-        ctx.strokeStyle =
-            i % 2 === 0
-                ? "rgba(100, 190, 255, 0.7)"
-                : "rgba(190, 100, 255, 0.65)";
+            const px = x + Math.cos(angle) * radius;
+            const py = y + Math.sin(angle) * radius;
 
-        ctx.lineWidth = Math.max(1, rx * 0.045);
+            if (j === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+
+        ctx.strokeStyle = colors[i];
+        ctx.lineWidth = Math.max(1.5, r * 0.055);
+        ctx.lineCap = "round";
         ctx.stroke();
     }
 
-    // Rotating energy streaks
-    for (let i = 0; i < 12; i++) {
-
-        const angle = time * 1.2 + i * Math.PI / 6;
-
-        const innerRadius = 0.2 + 0.1 * Math.sin(time * 2 + i);
-        const outerRadius = 0.75;
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            x + Math.cos(angle) * rx * innerRadius,
-            y + Math.sin(angle) * ry * innerRadius
-        );
-
-        ctx.lineTo(
-            x + Math.cos(angle + 0.3) * rx * outerRadius,
-            y + Math.sin(angle + 0.3) * ry * outerRadius
-        );
-
-        ctx.strokeStyle =
-            i % 2 === 0
-                ? "rgba(130, 210, 255, 0.9)"
-                : "rgba(220, 150, 255, 0.9)";
-
-        ctx.lineWidth = Math.max(1, rx * 0.035);
-        ctx.stroke();
-    }
-
-    // Bright central energy
-    ctx.fillStyle = "rgba(190, 210, 255, 0.25)";
-
+    // Dark center drawn over the inner spiral ends
     ctx.beginPath();
-    ctx.ellipse(
-        x,
-        y,
-        rx * 0.25,
-        ry * 0.4,
-        time,
-        0,
-        Math.PI * 2
-    );
+    ctx.arc(x, y, r * 0.13, 0, Math.PI * 2);
+    ctx.fillStyle = "#000000";
     ctx.fill();
-
-    ctx.restore();
-
-    // --------------------------------------------------
-    // Portal rim
-    // --------------------------------------------------
-
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = "#a855f7";
-
-    ctx.beginPath();
-    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-
-    ctx.strokeStyle = "#b68cff";
-    ctx.lineWidth = Math.max(3, rx * 0.12);
-    ctx.stroke();
-
-    ctx.shadowColor = "#38bdf8";
-    ctx.shadowBlur = 12;
-
-    ctx.beginPath();
-    ctx.ellipse(
-        x,
-        y,
-        rx * 0.94,
-        ry * 0.94,
-        0,
-        0,
-        Math.PI * 2
-    );
-
-    ctx.strokeStyle = "#60caff";
-    ctx.lineWidth = Math.max(1.5, rx * 0.035);
-    ctx.stroke();
 
     ctx.restore();
 }

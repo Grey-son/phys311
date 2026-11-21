@@ -20,7 +20,8 @@ export default {
     slingshot: {
         strength: 18,
         maxPull: 8,
-        duration: 0.18
+        duration: 0.18,
+        maxImpulse: 20
     },
 
     ghostDuration: 3.0,

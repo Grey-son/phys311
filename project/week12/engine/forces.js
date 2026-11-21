@@ -41,12 +41,16 @@ export class SlingshotForce {
     constructor({
         strength = 18,
         maxPull = 8,
-        duration = 0.18
+        duration = 0.18,
+        maxImpulse = Infinity
     } = {}) {
 
         this.strength = strength;
         this.maxPull = maxPull;
         this.duration = duration;
+
+        // Maximum impulse magnitude, in N*s.
+        this.maxImpulse = Math.max(0, maxImpulse);
 
         this.body = null;
         this.pull = new Vec2();
@@ -60,58 +64,40 @@ export class SlingshotForce {
     }
 
     setPull(pull) {
-        if (this.active) {
-            this.pull = pull.clone();
-        }
+        if (this.active) {this.pull = pull.clone();}
     }
 
-    // Returns the impulse corresponding to the current pull.
     impulseForPull(pull) {
-        const distance = Math.min(
-            pull.length(),
-            this.maxPull
-        );
+
+        const distance = Math.min(pull.length(),this.maxPull);
 
         if (distance === 0) return new Vec2();
 
         const direction = pull.normalized().mul(-1);
 
-        // Integral of the former linearly decaying force:
-        // J = strength * distance * duration / 2
+        // Integrated impulse from the original force model.
+        const rawMagnitude =this.strength * distance * this.duration / 2;
 
-        const impulseMagnitude =
-            this.strength * distance * this.duration / 2;
+        // Apply the level-specific impulse limit.
+        const impulseMagnitude = Math.min(rawMagnitude,this.maxImpulse);
 
         return direction.mul(impulseMagnitude);
     }
 
-    // Apply impulse: delta-v = J / m.
     applyImpulse(body, pull = this.pull) {
-        if (!body || body.fixed || body.invMass === 0) {
-            return new Vec2();
-        }
-
+        if (!body || body.fixed || body.invMass === 0) {return new Vec2();}
         const impulse = this.impulseForPull(pull);
-
         body.vel.addScaled(body.invMass, impulse);
-
         return impulse;
     }
 
     release() {
         if (!this.active) return new Vec2();
-
-        const impulse = this.applyImpulse(
-            this.body,
-            this.pull
-        );
-
+        const impulse = this.applyImpulse(this.body,this.pull);
         this.active = false;
-
         return impulse;
     }
 
-    // No continuous force is applied during world integration.
     apply() {}
 }
 
