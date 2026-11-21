@@ -1,11 +1,11 @@
-name: Deploy Lab 10 to GitHub Pages
+name: Deploy Project to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - "labs/lab10/**"
-      - ".github/workflows/deploy-lab10.yml"
+      - "project/week12/**"
+      - ".github/workflows/deploy-project.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,10 +30,10 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Lab 10
+      - name: Upload Project
         uses: actions/upload-pages-artifact@v3
         with:
-          path: labs/lab10
+          path: project/week12
 
       - name: Deploy to GitHub Pages
         id: deployment
