@@ -3,16 +3,14 @@ import { Body } from "./engine/body.js";
 import { World } from "./engine/world.js";
 import { VelocityVerlet } from "./engine/verlet.js";
 import { Flag } from "./engine/flag.js";
-
 import {NewtonianGravity, SlingshotForce, SlidingFriction} from "./engine/forces.js";
-
 import { BodyCollisions } from "./engine/collisions.js";
-import { Camera } from "./render/camera.js";
 
+import { Camera } from "./render/camera.js";
 import {drawGhostTrajectory} from "./render/renderer.js";
+import { drawHud } from "./render/hud.js";
 
 import {getControls,updateReadout} from "./ui/controls.js";
-
 import { bindKeyboard } from "./ui/keyboard.js";
 import { bindPointer } from "./ui/pointer.js";
 
@@ -24,6 +22,7 @@ const { canvas, ctx, readout } = getControls();
 
 const G = 0.8;
 const SOFTENING = 0.35;
+const PAR = 3;
 
 const DT = 1 / 240;
 const MAX_FRAME = 0.1;
@@ -44,6 +43,9 @@ let camera;
 
 let strokes = 0;
 let won = false;
+
+let initialEnergy = 0;
+let fps = 0;
 
 let accumulator = 0;
 let lastTime = performance.now() / 1000;
@@ -96,6 +98,8 @@ function resetWorld() {
     world.meta = {camera: new Camera(1, 0, 0)};
 
     world.primeAccelerations();
+
+    initialEnergy = world.totalEnergy();
 
     accumulator = 0;
 
@@ -220,7 +224,6 @@ function simulateGhostTrajectory() {
 
     const bodyMap = new Map();
 
-
     // Clone all bodies.
     for (const body of world.bodies) {
 
@@ -234,42 +237,29 @@ function simulateGhostTrajectory() {
         bodyMap.set(body, copy);
     }
 
-
     // Retrieve the cloned projectile.
     const previewProjectile = bodyMap.get(projectile);
 
     previewProjectile.fixed = false;
-    previewProjectile.invMass =
-        1 / previewProjectile.mass;
-
+    previewProjectile.invMass = 1 / previewProjectile.mass;
 
     // Apply the prospective slingshot impulse.
     // This uses the exact same impulse calculation
     // as the actual release.
 
-    previewProjectile.vel.addScaled(
-        previewProjectile.invMass,
-        sling.impulseForPull(pullVector)
-    );
+    previewProjectile.vel.addScaled(previewProjectile.invMass,sling.impulseForPull(pullVector));
 
 
     // Recreate the forces and constraints.
-    previewWorld.addForce(
-        new NewtonianGravity(G, SOFTENING)
-    );
-
-    previewWorld.addConstraint(
-        new BodyCollisions(0.8, 0.4)
-    );
+    previewWorld.addForce(new NewtonianGravity(G, SOFTENING));
+    previewWorld.addForce(new SlidingFriction())
+    previewWorld.addConstraint(new BodyCollisions(0.8, 0.4));
 
     previewWorld.primeAccelerations();
 
 
     // Store the simulated positions.
-    const points = [
-        previewProjectile.pos.clone()
-    ];
-
+    const points = [previewProjectile.pos.clone()];
 
     // Simulate the projectile's future trajectory.
     for (let i = 0; i < GHOST_STEPS; i++) {
@@ -284,6 +274,52 @@ function simulateGhostTrajectory() {
     ghostTrajectory = points;
 }
 
+function getGravityInfo() {
+
+    let gx = 0;
+    let gy = 0;
+
+    // Calculate the gravitational acceleration
+    // experienced by the projectile.
+
+    for (const source of world.bodies) {
+
+        if (source === projectile) continue;
+
+        const d = source.pos.sub(projectile.pos);
+        const dist = d.length();
+
+        if (dist === 0) continue;
+
+        // Match the gravitational force equation
+        // used in engine/forces.js.
+
+        const factor = G * source.mass / (dist ** 3 + SOFTENING ** 2);
+
+        gx += factor * d.x;
+        gy += factor * d.y;
+    }
+
+    // Magnitude of net gravitational acceleration.
+    const magnitude = Math.hypot(gx, gy);
+
+    // Angle measured counterclockwise from +x.
+    const angle = magnitude === 0
+        ? 0 : Math.atan2(gy, gx) * 180 / Math.PI;
+
+    // Convert angle into a compass direction.
+    const directions = [
+        "E", "NE", "N", "NW",
+        "W", "SW", "S", "SE"
+    ];
+
+    const index = ((Math.round(angle / 45) % 8) + 8) % 8;
+
+    const direction = magnitude === 0
+        ? "NONE" : directions[index];
+
+    return {gx,gy,magnitude,angle,direction};
+}
 
 // --------------------------------------------------
 // Drawing: bodies
@@ -446,26 +482,46 @@ function drawFlag() {
 function draw() {
 
     ctx.fillStyle = "#1e1e1e";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     drawGrid();
 
-    // Ghost trajectory is rendered behind the bodies.
-    drawGhostTrajectory(ctx,camera,ghostTrajectory);
+    // Ghost trajectory
+    drawGhostTrajectory(ctx, camera, ghostTrajectory);
 
     drawSling();
 
     drawFlag();
 
+    // Bodies
     for (const body of world.bodies) {drawBody(body);}
 
+    // Title
     ctx.save();
 
     ctx.fillStyle = "#d4d4d4";
+    ctx.font = `${Math.max(12, canvas.width / 95)}px system-ui`;
 
-    ctx.font =`${Math.max(12, canvas.width / 95)}px system-ui`;
     ctx.fillText("Two-body gravity / slingshot test",18,30);
+
     ctx.restore();
+
+    // Calculate current gravitational acceleration.
+    const gravity = getGravityInfo();
+
+    // Draw simulation HUD.
+    drawHud(ctx, canvas, world, {
+        E0: initialEnergy,
+        strokes: strokes,
+        par: PAR,
+        gravityG: G,
+        gravityMagnitude: gravity.magnitude,
+        gravityDirection: gravity.direction,
+        gravityAngle: gravity.angle,
+        paused: paused,
+        fps: fps,
+        dtDenom: Math.round(1 / DT)
+    });
 }
 
 // Pointer controls
