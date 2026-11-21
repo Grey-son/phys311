@@ -76,9 +76,7 @@ function resetWorld() {
         radius: 2.4,color: "#d9a441",fixed: true, uK: 1});
     const planet4 = new Body({mass: 800,pos: new Vec2(15, -5),
         radius: 4.3,color: "#6ca6d9",fixed: true, uK: 1});
-    const planet5 = new Body({mass: 340,pos: new Vec2(-10, -20),
-        radius: 1.5,color: "#d9a441",fixed: true, uK: 1});
-    const planet6 = new Body({mass: 1000,pos: new Vec2(0, 0),
+    const planet5 = new Body({mass: 1000,pos: new Vec2(0, 0),
         radius: 7.0,color: "#545141",fixed: true, uK: 1});
 
     projectile = new Body({mass: 1,pos: new Vec2(-14, 12),vel: new Vec2(-10, 0),radius: 0.25,color: "#f48771"});
@@ -86,7 +84,7 @@ function resetWorld() {
     flag = new Flag({pos: new Vec2(15, -10),radius: 0.85});
 
     world.add(planet1);world.add(planet2);world.add(planet3);
-    world.add(planet4);world.add(planet5);world.add(planet6);
+    world.add(planet4);world.add(planet5);
     world.add(projectile);
 
     world.addForce(new NewtonianGravity(G, SOFTENING));
@@ -116,10 +114,7 @@ function resetWorld() {
     updateUI();
 }
 
-
-// --------------------------------------------------
 // UI updates
-// --------------------------------------------------
 
 function updateUI() {
 
@@ -134,22 +129,15 @@ function updateUI() {
     });
 }
 
-// --------------------------------------------------
 // Goal and stroke-count logic
-// --------------------------------------------------
 
 function updateStrokeDisplay() {
-
-    document.getElementById("stroke-count")
-        .textContent = `Strokes: ${strokes}`;
+    document.getElementById("stroke-count").textContent = `Strokes: ${strokes}`;
 }
-
 
 function checkWin() {
 
-    if (won || !flag.isTouchedBy(projectile)) {
-        return;
-    }
+    if (won || !flag.isTouchedBy(projectile)) {return;}
 
     won = true;
     paused = true;
@@ -166,9 +154,7 @@ function checkWin() {
     updateUI();
 }
 
-// --------------------------------------------------
 // Camera
-// --------------------------------------------------
 
 function resizeCanvas() {
 
@@ -203,10 +189,7 @@ function resizeCanvas() {
     camera.originY = height / 2;
 }
 
-
-// --------------------------------------------------
 // Ghost trajectory simulation
-// --------------------------------------------------
 
 function simulateGhostTrajectory() {
 
@@ -249,14 +232,12 @@ function simulateGhostTrajectory() {
 
     previewProjectile.vel.addScaled(previewProjectile.invMass,sling.impulseForPull(pullVector));
 
-
     // Recreate the forces and constraints.
     previewWorld.addForce(new NewtonianGravity(G, SOFTENING));
     previewWorld.addForce(new SlidingFriction())
     previewWorld.addConstraint(new BodyCollisions(0.8, 0.4));
 
     previewWorld.primeAccelerations();
-
 
     // Store the simulated positions.
     const points = [previewProjectile.pos.clone()];
@@ -321,9 +302,7 @@ function getGravityInfo() {
     return {gx,gy,magnitude,angle,direction};
 }
 
-// --------------------------------------------------
 // Drawing: bodies
-// --------------------------------------------------
 
 function drawBody(body) {
 
@@ -439,42 +418,180 @@ function drawSling() {
 
 function drawFlag() {
 
-  const x = camera.toScreenX(flag.pos.x);
-  const y = camera.toScreenY(flag.pos.y);
+    if (!flag) return;
 
-  const poleHeight = camera.toScreenLen(2.3);
-  const flagWidth = camera.toScreenLen(1.25);
-  const flagHeight = camera.toScreenLen(0.8);
+    const x = camera.toScreenX(flag.pos.x);
+    const y = camera.toScreenY(flag.pos.y);
 
-  ctx.save();
+    // Portal dimensions
+    const rx = camera.toScreenLen(0.9);
+    const ry = camera.toScreenLen(1.5);
 
-  ctx.strokeStyle = "#f1f5f9";
-  ctx.lineWidth = Math.max(2, camera.toScreenLen(0.09));
+    const time = performance.now() / 1000;
 
-  ctx.beginPath();
-  ctx.moveTo(x, y + poleHeight);
-  ctx.lineTo(x, y - poleHeight * 0.25);
-  ctx.stroke();
+    ctx.save();
 
-  ctx.fillStyle = "#22c55e";
+    // --------------------------------------------------
+    // Outer glow
+    // --------------------------------------------------
 
-  ctx.beginPath();
-  ctx.moveTo(x, y - poleHeight * 0.25);
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = "#773cff";
 
-  ctx.lineTo(x + flagWidth, y - poleHeight * 0.25 + flagHeight * 0.25);
+    const glow = ctx.createRadialGradient(
+        x, y, rx * 0.3,
+        x, y, rx * 1.8
+    );
 
-  ctx.lineTo(x, y - poleHeight * 0.25 + flagHeight * 0.7);
+    glow.addColorStop(0, "rgba(70, 130, 255, 0.2)");
+    glow.addColorStop(0.5, "rgba(130, 50, 255, 0.25)");
+    glow.addColorStop(1, "rgba(40, 20, 100, 0)");
 
-  ctx.closePath();
-  ctx.fill();
+    ctx.fillStyle = glow;
 
-  ctx.strokeStyle = "rgba(250,204,21,0.45)";
-  ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx * 1.8, ry * 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-  ctx.fill();
-  ctx.stroke();
+    ctx.shadowBlur = 0;
 
-  ctx.restore();
+    // --------------------------------------------------
+    // Portal interior
+    // --------------------------------------------------
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx * 0.85, ry * 0.85, 0, 0, Math.PI * 2);
+    ctx.clip();
+
+    const interior = ctx.createRadialGradient(
+        x - rx * 0.3,
+        y - ry * 0.3,
+        0,
+        x,
+        y,
+        ry
+    );
+
+    interior.addColorStop(0, "#b8caff");
+    interior.addColorStop(0.3, "#526cff");
+    interior.addColorStop(0.65, "#6228c9");
+    interior.addColorStop(1, "#160b3d");
+
+    ctx.fillStyle = interior;
+    ctx.fillRect(
+        x - rx,
+        y - ry,
+        rx * 2,
+        ry * 2
+    );
+
+    // Swirling energy bands
+    for (let i = 0; i < 7; i++) {
+
+        const phase = time * (1.5 + i * 0.15) + i;
+
+        ctx.beginPath();
+
+        ctx.ellipse(
+            x,
+            y,
+            rx * (0.2 + i * 0.1),
+            ry * (0.2 + i * 0.1),
+            phase,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.strokeStyle =
+            i % 2 === 0
+                ? "rgba(100, 190, 255, 0.7)"
+                : "rgba(190, 100, 255, 0.65)";
+
+        ctx.lineWidth = Math.max(1, rx * 0.045);
+        ctx.stroke();
+    }
+
+    // Rotating energy streaks
+    for (let i = 0; i < 12; i++) {
+
+        const angle = time * 1.2 + i * Math.PI / 6;
+
+        const innerRadius = 0.2 + 0.1 * Math.sin(time * 2 + i);
+        const outerRadius = 0.75;
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x + Math.cos(angle) * rx * innerRadius,
+            y + Math.sin(angle) * ry * innerRadius
+        );
+
+        ctx.lineTo(
+            x + Math.cos(angle + 0.3) * rx * outerRadius,
+            y + Math.sin(angle + 0.3) * ry * outerRadius
+        );
+
+        ctx.strokeStyle =
+            i % 2 === 0
+                ? "rgba(130, 210, 255, 0.9)"
+                : "rgba(220, 150, 255, 0.9)";
+
+        ctx.lineWidth = Math.max(1, rx * 0.035);
+        ctx.stroke();
+    }
+
+    // Bright central energy
+    ctx.fillStyle = "rgba(190, 210, 255, 0.25)";
+
+    ctx.beginPath();
+    ctx.ellipse(
+        x,
+        y,
+        rx * 0.25,
+        ry * 0.4,
+        time,
+        0,
+        Math.PI * 2
+    );
+    ctx.fill();
+
+    ctx.restore();
+
+    // --------------------------------------------------
+    // Portal rim
+    // --------------------------------------------------
+
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = "#a855f7";
+
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+
+    ctx.strokeStyle = "#b68cff";
+    ctx.lineWidth = Math.max(3, rx * 0.12);
+    ctx.stroke();
+
+    ctx.shadowColor = "#38bdf8";
+    ctx.shadowBlur = 12;
+
+    ctx.beginPath();
+    ctx.ellipse(
+        x,
+        y,
+        rx * 0.94,
+        ry * 0.94,
+        0,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.strokeStyle = "#60caff";
+    ctx.lineWidth = Math.max(1.5, rx * 0.035);
+    ctx.stroke();
+
+    ctx.restore();
 }
 
 // Drawing: scene
