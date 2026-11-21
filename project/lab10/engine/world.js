@@ -20,7 +20,17 @@ export class World {
     }
 
     applyForces() {
-        for (const f of this.forces) {f.apply(this);}
+        for (const c of this.constraints) {
+            if (c.updateContacts) {c.updateContacts(this);}
+        }
+
+        for (const f of this.forces) {
+            if (!f.isContactForce) {f.apply(this);}
+        }
+
+        for (const f of this.forces) {
+            if (f.isContactForce) {f.apply(this);}
+        }
     }
 
     resolveConstraints() {

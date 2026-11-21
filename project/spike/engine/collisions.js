@@ -1,7 +1,7 @@
 import { Vec2 } from "./vec2.js";
 
 export class BodyCollisions {
-    constructor(e=1, eps=0) {this.e=e; this.count=0; this.eps=eps}
+    constructor(e=1, eps=0) {this.e=e; this.count=0; this.eps=eps, this.contactTolerance=1e-6}
     resolvePair(b1,b2) {
         const d = b2.pos.sub(b1.pos)
         const dist = d.length()

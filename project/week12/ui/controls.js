@@ -16,16 +16,25 @@ export function eventToWorld(event, canvas, camera) {
     return new Vec2(camera.toWorldX(px), camera.toWorldY(py));
 }
 
-export function updateReadout(readout, { paused, dragging, projectile, pullVector }) {
+export function updateReadout(readout, {
+    paused,
+    dragging,
+    projectile,
+    pullVector,
+    strokes = 0,
+    won = false
+}) {
     const state = paused ? "paused" : "running";
     const speed = projectile.vel.length();
 
     readout.textContent =
-        `Space: ${state}  |  R: reset  |  ` +
+        `Space: ${state}  |  R: reset  |  Strokes: ${strokes}  |  ` +
         `Projectile speed: ${speed.toFixed(2)}  |  ` +
         (
             dragging
                 ? `Pull: ${pullVector.length().toFixed(2)}`
-                : "Drag the small body to aim, release to launch"
+                : (won ? "Flag reached! Press R or Play again": 
+                    "Drag the small body to aim, release to launch"
+                )
         );
 }

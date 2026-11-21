@@ -7,6 +7,7 @@ export function bindPointer({
     getSling,
 
     isDragging,
+    isWon = () => false,
     setDragging,
     setPaused,
     setPullVector,
@@ -19,7 +20,7 @@ export function bindPointer({
 
     function onPointerDown(event) {
 
-        if (event.button !== 0 || isDragging()) return;
+        if (event.button !== 0 || isDragging() || isWon()) return;
 
         const projectile = getProjectile();
 

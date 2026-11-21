@@ -37,7 +37,6 @@ export class NewtonianGravity {
     }
 }
 
-// Slingshot impulse interaction.
 export class SlingshotForce {
     constructor({
         strength = 18,
@@ -117,27 +116,64 @@ export class SlingshotForce {
 }
 
 export class SlidingFriction {
-    constructor() {
+    constructor( contactEps = 1e-6, stopEps = 1e-2) {
+        this.contactEps = contactEps;
+        this.isContactForce = true;
     }
 
     apply(world) {
-        for (let i = 0; i < world.bodies.length; i++) {
-            const b1 = world.bodies[i];
-            if (b1.uS <= 0 || b1.touching.length === 0) {continue}
-            for (let j = i + 1; j < b1.touching.length; j++) {
-                const b2 = b1.touching[j];
-                if (b2.fixed) {continue}
+        const dt = world.dt;
+
+        for (const b1 of world.bodies) {
+
+            if (b1.touching.length === 0) continue;
+
+            for (const b2 of b1.touching) {
+
+                if (b1.id >= b2.id) continue;
+
+                const invMassSum = b1.invMass + b2.invMass;
+
+                if (invMassSum === 0) continue;
+
                 const d = b2.pos.sub(b1.pos);
                 const dist = d.length();
+
                 if (dist === 0) continue;
-                b1.force.addScaled(b1.mass*b2.mass*this.G/(dist**3+this.eps**2),d);
-                b2.force.addScaled(-b1.mass*b2.mass*this.G/(dist**3+this.eps**2),d);
+
+                const n = d.mul(1 / dist);
+                const vRel = b2.vel.sub(b1.vel);
+                const vT = vRel.sub(n.mul(vRel.dot(n)));
+                const speedT = vT.length();
+
+                if (speedT < this.contactEps) continue;
+
+                const a1 = b1.force.mul(b1.invMass);
+                const a2 = b2.force.mul(b2.invMass);
+                const aRel = a2.sub(a1);
+                const normalAcceleration = aRel.dot(n);
+                const N = Math.max(0,-normalAcceleration / invMassSum);
+
+                if (N === 0) continue;
+
+                const muK = (b1.uK + b2.uK) / 2;
+
+                if (muK <= 0) continue;
+
+                let frictionMagnitude = muK * N;
+
+                if (dt > 0) {
+                    const maxStoppingForce =speedT / (invMassSum * dt);
+                    frictionMagnitude = Math.min(frictionMagnitude,maxStoppingForce);
+                }
+
+                const f = vT.mul(-frictionMagnitude / speedT);
+
+                if (!b1.fixed) {b1.force.addTo(f.mul(-1));}
+                if (!b2.fixed) {b2.force.addTo(f);}
             }
         }
     }
 
-    potentialEnergy(world) {
-        let U = 0;
-        return U;
-    }
+    potentialEnergy(world) {return 0;}
 }

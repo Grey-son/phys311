@@ -2,8 +2,9 @@ import { Vec2 } from "./engine/vec2.js";
 import { Body } from "./engine/body.js";
 import { World } from "./engine/world.js";
 import { VelocityVerlet } from "./engine/verlet.js";
+import { Flag } from "./engine/flag.js";
 
-import {NewtonianGravity, SlingshotForce} from "./engine/forces.js";
+import {NewtonianGravity, SlingshotForce, SlidingFriction} from "./engine/forces.js";
 
 import { BodyCollisions } from "./engine/collisions.js";
 import { Camera } from "./render/camera.js";
@@ -37,8 +38,12 @@ const GHOST_STEPS = Math.round(GHOST_DURATION / DT);
 // State
 let world;
 let projectile;
+let flag;
 let sling;
 let camera;
+
+let strokes = 0;
+let won = false;
 
 let accumulator = 0;
 let lastTime = performance.now() / 1000;
@@ -53,56 +58,42 @@ let ghostTrajectory = [];
 
 // World initialization
 function resetWorld() {
+    strokes = 0;
+    won = false;
+
+    document.getElementById("win-overlay").classList.remove("visible");
+    document.getElementById("stroke-count").textContent = "Strokes: 0";
 
     world = new World(VelocityVerlet);
 
-    const planet1 = new Body({
-        mass: 1200,
-        pos: new Vec2(-10, 0),
-        radius: 5.4,
-        color: "#d9a441",
-        fixed: true
-    });
+    const planet1 = new Body({mass: 800,pos: new Vec2(-20, 10),
+        radius: 3.4,color: "#d9a441",fixed: true, uK: 1});
+    const planet2 = new Body({mass: 600,pos: new Vec2(-15, -1),
+        radius: 4.0,color: "#6ca6d9",fixed: true, uK: 1});
+    const planet3 = new Body({mass: 250,pos: new Vec2(-6, 9),
+        radius: 2.4,color: "#d9a441",fixed: true, uK: 1});
+    const planet4 = new Body({mass: 800,pos: new Vec2(15, -5),
+        radius: 4.3,color: "#6ca6d9",fixed: true, uK: 1});
+    const planet5 = new Body({mass: 340,pos: new Vec2(-10, -20),
+        radius: 1.5,color: "#d9a441",fixed: true, uK: 1});
+    const planet6 = new Body({mass: 1000,pos: new Vec2(0, 0),
+        radius: 7.0,color: "#545141",fixed: true, uK: 1});
 
-    const planet2 = new Body({
-        mass: 900,
-        pos: new Vec2(10, 0),
-        radius: 7.0,
-        color: "#6ca6d9",
-        fixed: true
-    });
+    projectile = new Body({mass: 1,pos: new Vec2(-14, 12),vel: new Vec2(-10, 0),radius: 0.25,color: "#f48771"});
 
-    projectile = new Body({
-        mass: 1,
-        pos: new Vec2(0, 9),
-        vel: new Vec2(-10, 0),
-        radius: 0.55,
-        color: "#f48771"
-    });
+    flag = new Flag({pos: new Vec2(15, -10),radius: 0.85});
 
-    world.add(planet1);
-    world.add(planet2);
+    world.add(planet1);world.add(planet2);world.add(planet3);
+    world.add(planet4);world.add(planet5);world.add(planet6);
     world.add(projectile);
 
-    world.addForce(
-        new NewtonianGravity(G, SOFTENING)
-    );
-
-    sling = new SlingshotForce({
-        strength: 18,
-        maxPull: 8,
-        duration: 0.18
-    });
-
+    world.addForce(new NewtonianGravity(G, SOFTENING));
+    sling = new SlingshotForce({strength: 18,maxPull: 8,duration: 0.18});
     world.addForce(sling);
+    world.addForce(new SlidingFriction());
+    world.addConstraint(new BodyCollisions(0.8, 0.4));
 
-    world.addConstraint(
-        new BodyCollisions(0.8, 0.4)
-    );
-
-    world.meta = {
-        camera: new Camera(1, 0, 0)
-    };
+    world.meta = {camera: new Camera(1, 0, 0)};
 
     world.primeAccelerations();
 
@@ -132,10 +123,44 @@ function updateUI() {
         paused,
         dragging,
         projectile,
-        pullVector
+        pullVector,
+        strokes,
+        won
+
     });
 }
 
+// --------------------------------------------------
+// Goal and stroke-count logic
+// --------------------------------------------------
+
+function updateStrokeDisplay() {
+
+    document.getElementById("stroke-count")
+        .textContent = `Strokes: ${strokes}`;
+}
+
+
+function checkWin() {
+
+    if (won || !flag.isTouchedBy(projectile)) {
+        return;
+    }
+
+    won = true;
+    paused = true;
+    dragging = false;
+
+    ghostTrajectory = [];
+
+    // Display victory popup
+    document.getElementById("win-message").textContent =
+        `Completed in ${strokes} ${strokes === 1 ? "stroke" : "strokes"}.`;
+
+    document.getElementById("win-overlay").classList.add("visible");
+
+    updateUI();
+}
 
 // --------------------------------------------------
 // Camera
@@ -376,6 +401,46 @@ function drawSling() {
     ctx.restore();
 }
 
+function drawFlag() {
+
+  const x = camera.toScreenX(flag.pos.x);
+  const y = camera.toScreenY(flag.pos.y);
+
+  const poleHeight = camera.toScreenLen(2.3);
+  const flagWidth = camera.toScreenLen(1.25);
+  const flagHeight = camera.toScreenLen(0.8);
+
+  ctx.save();
+
+  ctx.strokeStyle = "#f1f5f9";
+  ctx.lineWidth = Math.max(2, camera.toScreenLen(0.09));
+
+  ctx.beginPath();
+  ctx.moveTo(x, y + poleHeight);
+  ctx.lineTo(x, y - poleHeight * 0.25);
+  ctx.stroke();
+
+  ctx.fillStyle = "#22c55e";
+
+  ctx.beginPath();
+  ctx.moveTo(x, y - poleHeight * 0.25);
+
+  ctx.lineTo(x + flagWidth, y - poleHeight * 0.25 + flagHeight * 0.25);
+
+  ctx.lineTo(x, y - poleHeight * 0.25 + flagHeight * 0.7);
+
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(250,204,21,0.45)";
+  ctx.lineWidth = 2;
+
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 // Drawing: scene
 
 function draw() {
@@ -389,6 +454,8 @@ function draw() {
     drawGhostTrajectory(ctx,camera,ghostTrajectory);
 
     drawSling();
+
+    drawFlag();
 
     for (const body of world.bodies) {drawBody(body);}
 
@@ -413,6 +480,8 @@ bindPointer({
 
     isDragging: () => dragging,
 
+    isWon: () => won,
+
     setDragging: value => {dragging = value;},
 
     setPaused: value => {paused = value;},
@@ -425,7 +494,12 @@ bindPointer({
 
         pointerWorld = point;
 
-        // Recalculate preview whenever the pull changes.
+        if (!dragging && pullVector.length() > 0 && !won) {
+            strokes += 1;
+            updateStrokeDisplay();
+            pullVector = new Vec2();
+        }
+
         simulateGhostTrajectory();
 
         updateUI();
@@ -440,6 +514,8 @@ bindKeyboard({
     reset: resetWorld
 });
 
+document.getElementById("reset-button").addEventListener("click", resetWorld);
+
 // Main run loop
 
 function frame(nowMs) {
@@ -449,13 +525,21 @@ function frame(nowMs) {
 
     lastTime = now;
 
-    if (!paused && !dragging) {
+    if (!paused && !dragging && !won) {
 
         accumulator += elapsed;
 
         while (accumulator >= DT) {
+
+            const previousPosition = projectile.pos.clone();
+
             world.step(DT);
+
             accumulator -= DT;
+
+            checkWin(previousPosition);
+
+            if (won) {accumulator = 0;break;}
         }
     }
 
