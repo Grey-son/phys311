@@ -17,12 +17,22 @@ export function bindPointer({
 }) {
 
     let pointerWorld = null;
+    let pointerStart = null;
 
     function onPointerDown(event) {
 
-        if (event.button !== 0 || isDragging() || isWon()) return;
+        // Only accept the primary pointer.
+        if (
+            !event.isPrimary ||
+            event.button !== 0 ||
+            isDragging() ||
+            isWon()
+        ) return;
 
-        const projectile = getProjectile();
+        // Do not start a shot from an interactive control.
+        if (event.target.closest("button, input, select, textarea, a")) {
+            return;
+        }
 
         const point = eventToWorld(
             event,
@@ -30,13 +40,13 @@ export function bindPointer({
             getCamera()
         );
 
-        if (
-            projectile.pos.sub(point).length() >
-            projectile.radius + 0.35
-        ) return;
+        pointerStart = point.clone();
+        pointerWorld = point.clone();
 
         setDragging(true);
         setPaused(false);
+
+        const projectile = getProjectile();
 
         projectile.fixed = true;
         projectile.invMass = 0;
@@ -49,10 +59,12 @@ export function bindPointer({
 
         event.preventDefault();
 
-        onChange(point);
+        onChange(point, pointerStart);
     }
 
     function onPointerMove(event) {
+
+        if (!isDragging()) return;
 
         pointerWorld = eventToWorld(
             event,
@@ -60,22 +72,37 @@ export function bindPointer({
             getCamera()
         );
 
-        if (!isDragging()) return;
-
-        const pull = pointerWorld.sub(
-            getProjectile().pos
-        );
+        // Drag displacement becomes the slingshot pull vector.
+        // The launch impulse points in the opposite direction.
+        const pull = pointerWorld.sub(pointerStart);
 
         setPullVector(pull);
 
         getSling().setPull(pull);
 
-        onChange(pointerWorld);
+        event.preventDefault();
+
+        onChange(pointerWorld, pointerStart);
     }
 
-    function releasePointer() {
+    function releasePointer(event) {
 
         if (!isDragging()) return;
+
+        // Capture the final pointer position in case the last
+        // pointermove event was not delivered.
+        if (event && event.clientX !== undefined) {
+            pointerWorld = eventToWorld(
+                event,
+                canvas,
+                getCamera()
+            );
+
+            const pull = pointerWorld.sub(pointerStart);
+
+            setPullVector(pull);
+            getSling().setPull(pull);
+        }
 
         setDragging(false);
 
@@ -86,7 +113,9 @@ export function bindPointer({
 
         getSling().release();
 
-        onChange(pointerWorld);
+        const initialTouch = pointerStart;
+        pointerStart = null;
+        onChange(pointerWorld, initialTouch);
     }
 
     canvas.addEventListener("pointerdown", onPointerDown);

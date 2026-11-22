@@ -310,13 +310,14 @@ button:disabled {
 }
 
 .game-button {
-    padding: 8px 12px;
+    padding: 9px 10px;
     color: #e5e7eb;
     background: rgb(20 20 20 / 85%);
     border: 1px solid #555;
     border-radius: 5px;
     font-size: 0.75rem;
     font-weight: 700;
+    min-height: 38px;
 }
 
 .game-button:hover {

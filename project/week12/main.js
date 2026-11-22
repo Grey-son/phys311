@@ -51,6 +51,7 @@ let paused = false;
 let dragging = false;
 
 let pointerWorld = null;
+let pointerStartWorld = null;
 let pullVector = new Vec2();
 
 let ghostTrajectory = [];
@@ -138,6 +139,7 @@ function resetWorld(level = currentLevel) {
 
     pointerWorld = null;
     ghostTrajectory = [];
+    pointerStartWorld = null;
 
     lastTime = performance.now() / 1000;
 
@@ -147,8 +149,13 @@ function resetWorld(level = currentLevel) {
 }
 
 // UI updates
-
 function updateUI() {
+
+    const pauseButton = document.getElementById("pause-button");
+
+    pauseButton.textContent = paused ? "RESUME" : "PAUSE";
+    pauseButton.setAttribute("aria-pressed", String(paused));
+    pauseButton.disabled = won;
 
     updateReadout(readout, {
         paused,
@@ -157,12 +164,17 @@ function updateUI() {
         pullVector,
         strokes,
         won
-
     });
 }
 
-// Goal and stroke-count logic
+function togglePause() {
+    if (!gameActive || won || dragging) return;
 
+    paused = !paused;
+    updateUI();
+}
+
+// Goal and stroke-count logic
 function updateStrokeDisplay() {
     document.getElementById("stroke-count").textContent = `Strokes: ${strokes}`;
 }
@@ -441,13 +453,13 @@ function drawGrid() {
 
 function drawSling() {
 
-    if (!dragging || !pointerWorld) return;
+    if (!dragging || !pointerWorld || !pointerStartWorld) return;
 
-    const x1 = camera.toScreenX(projectile.pos.x);
-    const y1 = camera.toScreenY(projectile.pos.y);
+    const x1 = camera.toScreenX(pointerWorld.x);
+    const y1 = camera.toScreenY(pointerWorld.y);
 
-    const x2 = camera.toScreenX(pointerWorld.x);
-    const y2 = camera.toScreenY(pointerWorld.y);
+    const x2 = camera.toScreenX(pointerStartWorld.x);
+    const y2 = camera.toScreenY(pointerStartWorld.y);
 
     ctx.save();
 
@@ -539,15 +551,13 @@ function draw() {
 
     drawGrid();
 
-    // Ghost trajectory
     drawGhostTrajectory(ctx, camera, ghostTrajectory);
-
-    drawSling();
 
     drawFlag();
 
-    // Bodies
     for (const body of world.bodies) {drawBody(body);}
+
+    drawSling();
 
     // Title
     ctx.save();
@@ -621,9 +631,13 @@ bindPointer({
 
     getPullVector: () => pullVector,
 
-    onChange: point => {
+    onChange: (point, initialTouch) => {
 
         pointerWorld = point;
+
+        if (initialTouch) {
+            pointerStartWorld = initialTouch.clone();
+        }
 
         if (!dragging && pullVector.length() > 0 && !won) {
 
@@ -645,14 +659,7 @@ bindKeyboard({
 
     isDragging: () => dragging,
 
-    togglePaused: () => {
-
-        if (!gameActive || won) return;
-
-        paused = !paused;
-
-        updateUI();
-    },
+    togglePaused: togglePause,
 
     reset: () => {if (gameActive) {resetWorld(currentLevel);}}
 });
@@ -685,6 +692,9 @@ document.getElementById("game-levels")
     });
 
 // Game navigation
+
+document.getElementById("pause-button").addEventListener("click", togglePause);
+
 document.getElementById("restart-button")
     .addEventListener("click", () => {
         resetWorld(currentLevel);
