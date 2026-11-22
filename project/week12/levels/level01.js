@@ -45,7 +45,7 @@ export default {
         },
         {
             mass: 250,
-            pos: [-6, 9],
+            pos: [6, 9],
             radius: 2.4,
             color: "#d9a441",
             fixed: true,
@@ -71,8 +71,8 @@ export default {
 
     projectile: {
         mass: 1,
-        pos: [-14, 12],
-        vel: [-10, 0],
+        pos: [-15.8, 9],
+        vel: [0, 0],
         radius: 0.25,
         color: "#f48771"
     },

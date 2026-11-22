@@ -13,6 +13,10 @@ export function drawHud(ctx, canvas, world, hud) {
       color: "#d4d4d4"
     },
     {
+      text: `DISTANCE = ${hud.distanceToFlag.toFixed(3)}`,
+      color: "#60caff"
+    },
+    {
       text: `G        = ${hud.gravityG.toFixed(3)}`,
       color: "#d4d4d4"
     },

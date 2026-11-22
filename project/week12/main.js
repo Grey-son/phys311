@@ -42,6 +42,7 @@ let won = false;
 
 let initialEnergy = 0;
 let fps = 0;
+let fpsLastTime = null;
 
 let accumulator = 0;
 let lastTime = performance.now() / 1000;
@@ -64,34 +65,19 @@ function resetWorld(level = currentLevel) {
     strokes = 0;
     won = false;
 
-    document.getElementById("win-overlay")
-        .classList.remove("visible");
+    document.getElementById("win-overlay").classList.remove("visible");
 
-    document.getElementById("stroke-count")
-        .textContent = "Strokes: 0";
+    document.getElementById("stroke-count").textContent = "Strokes: 0";
 
     world = new World(VelocityVerlet);
 
-
-    // ------------------------------------------
     // Create level bodies
-    // ------------------------------------------
-
     for (const data of level.bodies) {
-
-        const body = new Body({
-            ...data,
-            pos: new Vec2(...data.pos)
-        });
-
+        const body = new Body({...data,pos: new Vec2(...data.pos)});
         world.add(body);
     }
 
-
-    // ------------------------------------------
     // Create projectile
-    // ------------------------------------------
-
     projectile = new Body({
         ...level.projectile,
 
@@ -101,21 +87,13 @@ function resetWorld(level = currentLevel) {
 
     world.add(projectile);
 
-
-    // ------------------------------------------
     // Create goal
-    // ------------------------------------------
-
     flag = new Flag({
         pos: new Vec2(...level.flag.pos),
         radius: level.flag.radius
     });
-
-
-    // ------------------------------------------
+    
     // Physics configuration
-    // ------------------------------------------
-
     const physics = level.physics;
 
     world.addForce(
@@ -140,11 +118,7 @@ function resetWorld(level = currentLevel) {
         )
     );
 
-
-    // ------------------------------------------
     // Camera and simulation initialization
-    // ------------------------------------------
-
     world.meta = {
         camera: new Camera(1, 0, 0)
     };
@@ -154,6 +128,8 @@ function resetWorld(level = currentLevel) {
     initialEnergy = world.totalEnergy();
 
     accumulator = 0;
+    fps = 0;
+    fpsLastTime = null;
 
     dragging = false;
     paused = false;
@@ -556,7 +532,6 @@ function drawFlag() {
 }
 
 // Drawing: scene
-
 function draw() {
 
     ctx.fillStyle = "#1e1e1e";
@@ -587,6 +562,13 @@ function draw() {
     // Calculate current gravitational acceleration.
     const gravity = getGravityInfo();
 
+    const distanceToFlag = Math.max(
+        0,
+        projectile.pos.sub(flag.pos).length()
+            - projectile.radius
+            - flag.radius
+    );
+
     // Draw simulation HUD.
     drawHud(ctx, canvas, world, {
 
@@ -594,6 +576,7 @@ function draw() {
 
         strokes: strokes,
         par: currentLevel.par,
+        distanceToFlag: distanceToFlag,
 
         gravityG: currentLevel.physics.G,
         gravityMagnitude: gravity.magnitude,
@@ -618,11 +601,7 @@ function startLevel(level) {
     resetWorld(level);
 }
 
-
-// ------------------------------------------
 // Pointer controls
-// ------------------------------------------
-
 bindPointer({
 
     canvas,
@@ -634,17 +613,11 @@ bindPointer({
     isDragging: () => dragging,
     isWon: () => won,
 
-    setDragging: value => {
-        dragging = value;
-    },
+    setDragging: value => {dragging = value;},
 
-    setPaused: value => {
-        paused = value;
-    },
+    setPaused: value => {paused = value;},
 
-    setPullVector: value => {
-        pullVector = value;
-    },
+    setPullVector: value => {pullVector = value;},
 
     getPullVector: () => pullVector,
 
@@ -667,11 +640,7 @@ bindPointer({
     }
 });
 
-
-// ------------------------------------------
 // Keyboard controls
-// ------------------------------------------
-
 bindKeyboard({
 
     isDragging: () => dragging,
@@ -685,81 +654,49 @@ bindKeyboard({
         updateUI();
     },
 
-    reset: () => {
-
-        if (gameActive) {resetWorld(currentLevel);}
-    }
+    reset: () => {if (gameActive) {resetWorld(currentLevel);}}
 });
 
-
-// ------------------------------------------
 // Main menu
-// ------------------------------------------
 
 document.getElementById("play-button")
     .addEventListener("click", () => {
-
         const first = screens.firstUnlocked();
-
         if (first) {startLevel(first);}
     });
 
-
 document.getElementById("levels-button")
     .addEventListener("click", () => {
-
         screens.renderLevelSelect(startLevel);
-
         screens.showLevelSelect();
     });
 
-
-// ------------------------------------------
 // Level selection
-// ------------------------------------------
-
 document.getElementById("back-menu")
     .addEventListener("click", () => {
-
         screens.showMainMenu();
     });
-
 
 document.getElementById("game-levels")
     .addEventListener("click", () => {
-
         gameActive = false;
-
         screens.renderLevelSelect(startLevel);
-
         screens.showLevelSelect();
     });
 
-
-// ------------------------------------------
 // Game navigation
-// ------------------------------------------
-
 document.getElementById("restart-button")
     .addEventListener("click", () => {
-
         resetWorld(currentLevel);
     });
 
-
 document.getElementById("game-menu")
     .addEventListener("click", () => {
-
         gameActive = false;
-
         screens.showMainMenu();
     });
 
-
-// ------------------------------------------
 // Victory screen navigation
-// ------------------------------------------
-
 document.getElementById("next-level-button")
     .addEventListener("click", () => {
 
@@ -773,7 +710,6 @@ document.getElementById("next-level-button")
         }
     });
 
-
 document.getElementById("win-levels-button")
     .addEventListener("click", () => {
 
@@ -784,7 +720,6 @@ document.getElementById("win-levels-button")
         screens.showLevelSelect();
     });
 
-
 document.getElementById("win-menu-button")
     .addEventListener("click", () => {
 
@@ -793,12 +728,18 @@ document.getElementById("win-menu-button")
         screens.showMainMenu();
     });
 
-
-// ------------------------------------------
 // Main run loop
-// ------------------------------------------
-
 function frame(nowMs) {
+    // Measure actual rendered frame rate.
+    if (fpsLastTime !== null) {
+        const frameDelta = (nowMs - fpsLastTime) / 1000;
+        // Ignore unusually long pauses, such as switching browser tabs.
+        if (frameDelta > 0 && frameDelta < 0.25) {
+            const instantaneousFPS = 1 / frameDelta;
+            fps = fps === 0 ? instantaneousFPS : 0.9 * fps + 0.1 * instantaneousFPS;
+        }
+    }
+    fpsLastTime = nowMs;
 
     const now = nowMs / 1000;
 
@@ -832,11 +773,7 @@ function frame(nowMs) {
     requestAnimationFrame(frame);
 }
 
-
-// ------------------------------------------
 // Initialization
-// ------------------------------------------
-
 screens.showMainMenu();
 
 window.addEventListener("resize", () => {
