@@ -345,18 +345,22 @@ button:disabled {
 
 #stroke-count {
     position: absolute;
-    top: 55px;
+    top: 58px;
     right: 14px;
 
     margin: 0;
-    padding: 8px 12px;
+    padding: 9px 12px;
+    min-width: 190px;
 
     color: #e5e7eb;
     background: rgb(20 20 20 / 85%);
     border: 1px solid #555;
     border-radius: 5px;
 
-    font: 600 14px monospace;
+    font: 600 12px/1.55 monospace;
+    white-space: pre;
+    text-align: right;
+
     pointer-events: none;
     z-index: 5;
 }

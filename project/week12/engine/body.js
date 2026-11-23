@@ -17,18 +17,21 @@ export class Body {
     this.id = _nextId++;
     this.grounded = false;
     this.uK = uK;
+    this.baseUK = uK;
     this.touching = [];
   }
     get kineticEnergy() {return 0.5*this.mass*this.vel.lengthSq();}
   clone() {
-      return new Body({
-          mass: this.mass,
-          pos: this.pos.clone(),
-          vel: this.vel.clone(),
-          radius: this.radius,
-          color: this.color,
-          fixed: this.fixed,
-          uK: this.uK
-      });
+    const copy = new Body({
+      mass: this.mass,
+      pos: this.pos.clone(),
+      vel: this.vel.clone(),
+      radius: this.radius,
+      color: this.color,
+      fixed: this.fixed,
+      uK: this.uK
+    });
+    copy.baseUK = this.baseUK
+    return copy
   }
 }

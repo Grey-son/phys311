@@ -17,6 +17,8 @@ import { createScreenManager } from "./ui/screens.js";
 
 import { levels, getLevel, getNextLevel } from "./levels/index.js";
 
+import { attachVerificationTests } from "./engine/verificationTests.js";
+
 // UI
 
 const { canvas, ctx, readout } = getControls();
@@ -46,6 +48,10 @@ let fpsLastTime = null;
 
 let accumulator = 0;
 let lastTime = performance.now() / 1000;
+
+let debugMode = new URLSearchParams(window.location.search).get("debug") === "1";
+let conservativeMode = false;
+let collisionsConstraint = null;
 
 let paused = false;
 let dragging = false;
@@ -112,12 +118,14 @@ function resetWorld(level = currentLevel) {
 
     world.addForce(new SlidingFriction());
 
-    world.addConstraint(
-        new BodyCollisions(
-            physics.restitution,
-            physics.collisionEps
-        )
+    collisionsConstraint = new BodyCollisions(
+        conservativeMode ? 1 : physics.restitution,
+        physics.collisionEps
     );
+
+    world.addConstraint(collisionsConstraint);
+
+    applyConservativeMode();
 
     // Camera and simulation initialization
     world.meta = {
@@ -163,7 +171,8 @@ function updateUI() {
         projectile,
         pullVector,
         strokes,
-        won
+        won,
+        conservativeMode
     });
 }
 
@@ -174,9 +183,46 @@ function togglePause() {
     updateUI();
 }
 
+function applyConservativeMode() {
+    if (!world || !currentLevel) return;
+
+    for (const body of world.bodies) {
+        body.uK = conservativeMode ? 0 : body.baseUK;
+    }
+
+    if (collisionsConstraint) {
+        collisionsConstraint.e = conservativeMode ? 1 : currentLevel.physics.restitution;
+    }
+}
+
+function toggleConservativeMode() {
+    conservativeMode = !conservativeMode;
+
+    if (gameActive && world) {
+        applyConservativeMode();
+        simulateGhostTrajectory();
+        updateUI();
+        draw();
+    }
+}
+
 // Goal and stroke-count logic
-function updateStrokeDisplay() {
-    document.getElementById("stroke-count").textContent = `Strokes: ${strokes}`;
+function updateStrokeDisplay(gravity = getGravityInfo()) {
+    if (!currentLevel || !projectile || !flag) return;
+
+    const distance = Math.max(
+        0,
+        projectile.pos.sub(flag.pos).length() - projectile.radius - flag.radius
+    );
+
+    document.getElementById("stroke-count").textContent = [
+        `STROKES   ${strokes} / ${currentLevel.par}`,
+        `DISTANCE  ${distance.toFixed(3)}`,
+        `G         ${currentLevel.physics.G.toFixed(3)}`,
+        `|g|       ${gravity.magnitude.toFixed(5)}`,
+        `DIRECTION ${gravity.direction}`,
+        `ANGLE     ${gravity.angle.toFixed(2)}°`
+    ].join("\n");
 }
 
 function checkWin() {
@@ -300,7 +346,10 @@ function simulateGhostTrajectory() {
     previewWorld.addForce(new SlidingFriction());
 
     previewWorld.addConstraint(
-        new BodyCollisions(physics.restitution,physics.collisionEps)
+        new BodyCollisions(
+            conservativeMode ? 1 : physics.restitution,
+            physics.collisionEps
+        )
     );
 
     previewWorld.primeAccelerations();
@@ -579,9 +628,11 @@ function draw() {
             - flag.radius
     );
 
-    // Draw simulation HUD.
-    drawHud(ctx, canvas, world, {
+    // Keep the compact stroke/angle readout visible during normal play.
+    updateStrokeDisplay(gravity);
 
+    // Detailed physics HUD is rendered only in DEBUG mode.
+    drawHud(ctx, canvas, world, {
         E0: initialEnergy,
 
         strokes: strokes,
@@ -595,6 +646,12 @@ function draw() {
 
         paused: paused,
         fps: fps,
+        debug: debugMode,
+        conservativeMode: conservativeMode,
+
+        contactsThisStep: world.constraints.reduce(
+            (sum, constraint) => sum + (constraint.count || 0), 0
+        ),
 
         dtDenom: Math.round(1 / DT)
     });
@@ -661,7 +718,17 @@ bindKeyboard({
 
     togglePaused: togglePause,
 
-    reset: () => {if (gameActive) {resetWorld(currentLevel);}}
+    reset: () => {
+        if (gameActive) {resetWorld(currentLevel);}
+    },
+
+    toggleDebug: () => {
+        debugMode = !debugMode;
+
+        if (gameActive && world) {draw();}
+    },
+
+    toggleConservative: toggleConservativeMode
 });
 
 // Main menu
@@ -793,4 +860,5 @@ window.addEventListener("resize", () => {
     }
 });
 
+attachVerificationTests(() => currentLevel);
 requestAnimationFrame(frame);

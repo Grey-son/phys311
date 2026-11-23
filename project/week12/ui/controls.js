@@ -22,14 +22,16 @@ export function updateReadout(readout, {
     projectile,
     pullVector,
     strokes = 0,
-    won = false
+    won = false,
+    conservativeMode = false
 }) {
     const state = paused ? "paused" : "running";
+    const modeLabel = conservativeMode ? "ON (e=1, uK=0)" : "OFF";
     const speed = projectile.vel.length();
 
     readout.textContent =
-        `Space: ${state}  |  R: reset  |  Strokes: ${strokes}  |  ` +
-        `Projectile speed: ${speed.toFixed(2)}  |  ` +
+        `Space: ${state}  |  R: reset  |  C: conservative ${modeLabel}  ` +
+        `Projectile speed: ${speed.toFixed(2)}  |  Strokes: ${strokes}  |  ` +
         (
             dragging
                 ? `Pull: ${pullVector.length().toFixed(2)}`

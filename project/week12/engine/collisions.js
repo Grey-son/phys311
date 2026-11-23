@@ -19,7 +19,7 @@ export class BodyCollisions {
             b1.vel.addScaled(-J*b1.invMass,n)
             b2.vel.addScaled(J*b2.invMass,n)
         } 
-        if (v_rel.length<=this.eps) {
+        if (v_rel.length()<=this.eps) {
             b1.vel.addScaled(-b1.vel.dot(vn), n)
             b2.vel.addScaled(-b2.vel.dot(vn), n)
         }

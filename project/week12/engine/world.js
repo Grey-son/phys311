@@ -42,7 +42,12 @@ export class World {
         this.clearForces();
         this.applyForces();
         this.Integrator.step(this, dt);
-        this.resolveConstraints(this);
+        for (const c of this.constraints) {
+            if (typeof c.count === "number") {
+                c.count = 0;
+            }
+        }
+        this.resolveConstraints();
         this.time += dt;
         this.steps += 1;
     }
